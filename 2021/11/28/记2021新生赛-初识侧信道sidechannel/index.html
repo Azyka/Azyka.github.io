@@ -4,7 +4,7 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="theme-color" content=#58b77a>
-  <title>记2021新生赛-初识侧信道sidechannel | Azyka&#39;s Blog</title>
+  <title>记2021新生赛-初识侧信道SideChannel | Azyka&#39;s Blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="author" content="Azyka">
   <meta name="keywords" content="">
@@ -84,8 +84,12 @@
   <div class="lx-post">
     <div class="lx-entry padding">
       <div>
-        <p>感谢jkilopu师傅出的题，这次新生赛虽然是给新生做的，我也学到了不少东西。最后的侧信道确实没想到，但赛后看，还是思路不够开阔，没找对方法。</p>
-<p>题目地址及exp：<a target="_blank" rel="noopener" href="https://github.com/jkilopu/scuctf_newbee_2021_pwn">https://github.com/jkilopu/scuctf_newbee_2021_pwn</a></p>
+        <div class="note info">
+            <p>感谢jkilopu师傅出的题，这次新生赛虽然是给新生做的，我也学到了不少东西。最后的侧信道确实没想到，但赛后看，还是思路不够开阔，没找对方法。</p><p>题目地址及exp：<a target="_blank" rel="noopener" href="https://github.com/jkilopu/scuctf_newbee_2021_pwn">https://github.com/jkilopu/scuctf_newbee_2021_pwn</a></p>
+          </div>
+
+<span id="more"></span>
+
 <h2 id="pwn8-safe-copy"><a href="#pwn8-safe-copy" class="headerlink" title="pwn8 safe_copy"></a>pwn8 safe_copy</h2><p>这题主要问题是找到哪里可以溢出</p>
 <p><img src="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/pwn8.png" alt="pwn8"></p>
 <p>这里看到一个整数向上溢出，让maxlen=0xffffffff,接下来就可以为所欲为地溢出了</p>
@@ -182,7 +186,13 @@
     <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
     <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
     
-    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-bookmark fa-fw"></i>Pages</span>
+        <ul>
+          <li><a href="/guestbook/">Guestbook</a></li>
+        <li><a href="/about/">About</a></li>
+        </ul>
+    </li>
     <li class="has-sub"><span class="dropdown-heading">
       <i class="fa fa-link fa-fw"></i>Friends</span>
         <ul>

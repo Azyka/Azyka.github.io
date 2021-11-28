@@ -84,7 +84,12 @@
   <div class="lx-post">
     <div class="lx-entry padding">
       <div>
-        <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p>
+        <div class="note info">
+            <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p><p>这篇文章主要总结了关于fastbin、unsorted bin和tcache的部分内容</p>
+          </div>
+
+<span id="more"></span>
+
 <h2 id="malloc"><a href="#malloc" class="headerlink" title="malloc"></a>malloc</h2><p>chunksize和2*size_sz对齐（64位下位16）</p>
 <p>如果malloc大小不对齐，大于8向上取整，小于等于8向下取整</p>
 <h2 id="fastbin"><a href="#fastbin" class="headerlink" title="fastbin"></a>fastbin</h2><ol>
@@ -238,7 +243,13 @@
     <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
     <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
     
-    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-bookmark fa-fw"></i>Pages</span>
+        <ul>
+          <li><a href="/guestbook/">Guestbook</a></li>
+        <li><a href="/about/">About</a></li>
+        </ul>
+    </li>
     <li class="has-sub"><span class="dropdown-heading">
       <i class="fa fa-link fa-fw"></i>Friends</span>
         <ul>
