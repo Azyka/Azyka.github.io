@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content=#58b77a>
+  <title>堆学习整理（一） | Azyka&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Azyka">
+  <meta name="keywords" content="">
+  <meta name="description" content="">
+  <script id="hexo-configurations">
+  var CONFIG = {
+    root: '/',
+    theme: 'lx',
+    version: '0.4.2',
+    localsearch:{
+      "enable": false,
+      "trigger": "auto",
+      "top_n_per_article": 1,
+      "unescape": false,
+      "preload": false
+      },
+    path: 'null'
+  };
+</script>
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/css/main.min.css">
+  
+  <style type="text/css">
+    pre,
+    code {
+      font-family: 'Fira Code', monospace;
+    }
+    html {
+      font-family: sans-serif;
+    }
+    body {
+      font-family: sans-serif;
+    }
+    h1, h2, h3, h4, h5, figure {
+      font-family: sans-serif;
+    }
+    .menu-container{
+      font-family: sans-serif;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.jside.menu.min.js"></script>
+	<script>
+	$(document).ready(function(){
+	$(".menu-container").jSideMenu({
+	    jSidePosition: "position-right",
+	    jSideSticky: true,
+	    jSideSkin: "greenish",
+	     });
+	}); 
+	</script>
+  
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira Code:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css">
+<meta name="generator" content="Hexo 5.4.0"></head>
+<body>
+<div class="single">
+
+<div id="page">
+<div class="header">
+  <div id="lx-aside" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/post_cover.min.jpeg)" data-stellar-background-ratio="0.5">
+    <div class="overlay">
+      
+      <div class="page-title">
+        <div class="avatar"><a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"></a></div>
+        <span>2021-11-28</span>
+        <h2>堆学习整理（一）</h2>
+        <div class="tags"><i class="fa fa-tag"></i><a class="tag-none-link" href="/tags/pwn-heap/" rel="tag">pwn heap</a></div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+<div id="lx-main-content">
+  <div class="lx-post">
+    <div class="lx-entry padding">
+      <div>
+        <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p>
+<h2 id="malloc"><a href="#malloc" class="headerlink" title="malloc"></a>malloc</h2><p>chunksize和2*size_sz对齐（64位下位16）</p>
+<p>如果malloc大小不对齐，大于8向上取整，小于等于8向下取整</p>
+<h2 id="fastbin"><a href="#fastbin" class="headerlink" title="fastbin"></a>fastbin</h2><ol>
+<li>单链表</li>
+<li><strong>fd指针指向先进入bin的chunk，使用LIFO策略</strong></li>
+<li>free时不会合并，即使与未分配区域相邻也不会合并</li>
+<li>不清空prev_inuse</li>
+<li>大小为整数0x20~0x80共7个</li>
+<li>glibc 要求 chunk 块至少可以存储 4 个必要的字段。例如malloc(size),size&lt;16,自动分配对齐0x20。</li>
+<li>常用的0x7f对应的大小为0x70的fastbin（即分配0x60）</li>
+<li>仅检测fastbin头部是否存在doublefree</li>
+</ol>
+<h2 id="unsorted-bin"><a href="#unsorted-bin" class="headerlink" title="unsorted bin"></a>unsorted bin</h2><ol>
+<li><p>双链表</p>
+</li>
+<li><p>大小不符合fastbin</p>
+</li>
+<li><p>第一个进入的chunk，其fd,bk指向main_arean固定偏移处，后续<strong>bk指向后进入的chunk，fd指向先进入的chunk</strong>，与main_arean构成循环双向链表</p>
+</li>
+<li><p>free时会触发unlink，合并物理地址相邻的chunk</p>
+</li>
+<li><p>使用方式：Unsorted Bin 在使用的过程中，采用的遍历顺序是 <strong>FIFO</strong>，<strong>即插入的时候插入到 unsorted bin 的头部，取出的时候从链表尾获取</strong>。</p>
+<p>在程序 malloc 时，如果在 fastbin，small bin 中找不到对应大小的 chunk，就会尝试从 Unsorted Bin 中寻找 chunk。如果取出来的 chunk 大小刚好满足，就会直接返回给用户，否则就会把这些 chunk 分别插入到对应的 bin 中。</p>
+</li>
+</ol>
+<h2 id="Tcache"><a href="#Tcache" class="headerlink" title="Tcache"></a>Tcache</h2><ol>
+<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> 。</p>
+</li>
+<li><p>free 内存，且 size 小于 small bin size 时</p>
+<p>tcache 出现之前会放到 fastbin 或者 unsorted bin 中</p>
+<p>tcache 出现后：</p>
+<ul>
+<li>先放到对应的 tcache 中，直到 tcache 被填满（默认是 7 个）</li>
+<li>tcache 被填满之后，再次 free 的内存和之前一样被放到 fastbin 或者 unsorted bin 中</li>
+<li>tcache 中的 chunk 不会合并（不取消 inuse bit）</li>
+<li><strong>LIFO</strong></li>
+</ul>
+</li>
+<li><p>malloc 内存，且 size 在 tcache 范围内</p>
+</li>
+<li><p>先从 tcache 取 chunk，直到 tcache 为空、</p>
+</li>
+<li><p>tcache 为空后，从 bin 中找</p>
+</li>
+<li><p>tcache 为空时，如果 <code>fastbin/smallbin/unsorted bin</code> 中有 size 符合的 chunk，会先把 <code>fastbin/smallbin/unsorted bin</code> 中的 chunk 放到 tcache 中，直到填满。之后再从 tcache 中取；因此 chunk 在 bin 中和 tcache 中的顺序会反过来</p>
+</li>
+</ol>
+<h2 id="Unlink"><a href="#Unlink" class="headerlink" title="Unlink"></a>Unlink</h2><ol>
+<li>要求：需要获取存储chunk地址的数组地址</li>
+<li>堆内容：可以控制chunk[a]中的内容，布置fd,bk分别为&amp;chunk[a]-0x18,&amp;chunk[a]-0x10,并堆溢出改写其相邻的fakechunk的prevsize和prev_inuse(和size在同一字节)。</li>
+<li>其中的chunksize检查除了可以伪造size等于fakechunk中prev_size，因为prev_size只用于找到上一个chunk的开始地址，所以也可以在chunk[a]里再伪造一个相邻chunk，使其prev_size=伪造的chunksize。限于glibc&lt;=2.28</li>
+<li>效果：可以更改数组中，fakechunk前一个存储chunk[a]地址为&amp;chunk[a]-0x18</li>
+<li>用处：改写got表，一是改写free为system，二是改写atoi为system</li>
+</ol>
+<h2 id="Fastbin-Attack"><a href="#Fastbin-Attack" class="headerlink" title="Fastbin Attack"></a>Fastbin Attack</h2><h3 id="house-of-spirit"><a href="#house-of-spirit" class="headerlink" title="house of spirit"></a>house of spirit</h3><ol>
+<li>fake chunk 的 ISMMAP 位不能为 1，因为 free 时，如果是 mmap 的 chunk，会单独处理。</li>
+<li>fake chunk 地址需要对齐， MALLOC_ALIGN_MASK</li>
+<li>fake chunk 的 size 大小需要满足对应的 fastbin 的需求，同时也得对齐。</li>
+<li>fake chunk 的 next chunk 的大小不能小于 <code>2 * SIZE_SZ</code>，同时也不能大于<code>av-&gt;system_mem</code> 。</li>
+<li>fake chunk 对应的 fastbin 链表头部不能是该 fake chunk，即不能构成 double free 的情况。</li>
+</ol>
+<p>查看free中的fastbin相关的处理源码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">if ((unsigned long)(size) &lt;= (unsigned long)(get_max_fast ())</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  ## 对size进行基本的检查</span><br><span class="line">    if (__builtin_expect (chunk_at_offset (p, size)-&gt;size &lt;= 2 * SIZE_SZ, 0)</span><br><span class="line">  || __builtin_expect (chunksize (chunk_at_offset (p, size))</span><br><span class="line">           &gt;= av-&gt;system_mem, 0))</span><br><span class="line">      &#123;</span><br><span class="line">  ...</span><br><span class="line">  ## 对next chunk的size进行检查</span><br><span class="line">  if (chunk_at_offset (p, size)-&gt;size &lt;= 2 * SIZE_SZ</span><br><span class="line">        || chunksize (chunk_at_offset (p, size)) &gt;= av-&gt;system_mem;</span><br><span class="line">        &#125;))</span><br><span class="line">    &#123;</span><br><span class="line">      errstr = &quot;free(): invalid next size (fast)&quot;;</span><br><span class="line">      goto errout;</span><br><span class="line">    &#125;</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure>
+
+<p>可以看到只需要满足前后两个chunksize的相关条件就能正常进fastbin</p>
+<p>free后再次malloc对应size即可获得fakechunk地址处的一个chunk</p>
+<p>fastbin attack的基本用法是获取一个已知地址的chunk然后修改内容</p>
+<p>此外还有关于global_max_fat的用法，需要结合unsortedbin attack</p>
+<p>基本思想就是利用fastbin的单链表和字节错位的方式从已知地址上分配一个chunk出来改写</p>
+<h2 id="Unsorted-Bin-attack"><a href="#Unsorted-Bin-attack" class="headerlink" title="Unsorted Bin attack"></a>Unsorted Bin attack</h2><p>修改chunk的bk为&amp;target-0x10,fd为任意值都不影响</p>
+<p>通过malloc出这个chunk实现任意地址写，但之后可能会导致无法使用unsortedbin</p>
+<p>修改后的值为unsorted_chunks(av)，是一个很大的不确定的数字</p>
+<p>一种用法是把循环、条件的值改成一个很大的数，没什么可说的</p>
+<p>还有就是修改 heap 中的 global_max_fast 来使得更大的 chunk 可以被视为 fast bin，这样我们就可以去执行一些 fast bin attack 了。</p>
+<ol>
+<li><p>改写 <code>global_max_fast</code> 为一个较大的值，然后释放一个较大的堆块时，由于fastbins数组空间是有限的，其相对偏移将会往后覆盖，如果释放堆块的size可控，就可实现往fastbins数组（main_arena）后的任意地址写入所堆块的地址。</p>
+<p>实现任意地址写的方式是：通过地址与fastbin数组的偏移计算出所需 <code>free</code> 的堆块的size，然后释放相应的堆块，即可实现往该地址写入堆块的地址以进一步利用。</p>
+<p>计算偏移的代码可以如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fastbin_ptr=libc_base+libc.symbols[&#x27;main_arena&#x27;]+8</span><br><span class="line">idx=(target_addr-fastbin_ptr)/8</span><br><span class="line">size=idx*0x10+0x20</span><br></pre></td></tr></table></figure>
+
+<p>或者仍然使用fastbin attack，只是少了global_max_fast的限制</p>
+</li>
+</ol>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div class="lx-navigation">
+	<div class="lx-cover next lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-l.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="#">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Next</span>
+						<h3>No newer post</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+        <div class="lx-cover prev lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-r.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="/2021/11/28/%E8%AE%B02021%E6%96%B0%E7%94%9F%E8%B5%9B-%E5%88%9D%E8%AF%86%E4%BE%A7%E4%BF%A1%E9%81%93sidechannel/">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Prev</span>
+						<h3>记2021新生...</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+</div>
+
+</div>
+
+<footer>
+  <div>
+  Copyright &copy; 2021.<a href="/">Azyka's Blog</a><br>Powered by <a href="https://hexo.io" target="_blank">Hexo</a> | Theme <a href="https://lx.js.org" target="_blank">Lx</a><br>
+  </div>
+</footer>
+
+</div>
+
+<button class="hamburger hamburger--arrow-r" type="button" title="menu">
+    <div class="hamburger-box">
+      <div class="hamburger-inner"></div>
+    </div>
+</button>
+<div class="menu visibility">
+  <div class="menu-head">
+    <span class="layer">
+      <div class="col">
+        <div class="row for-pic">
+          <div class="profile-pic">
+            <a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"/></a>
+          </div>
+        </div>
+        <div class="row for-name">
+          <p>Azyka</p>
+          <span class="tagline">Try and Trail</span>
+        </div>
+      </div>
+    </span>
+  </div>
+  <nav class="menu-container">
+  <ul class="menu-items">
+    <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
+    <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+    
+    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-link fa-fw"></i>Friends</span>
+        <ul>
+          <li> <a href="https://lx.js.org" target="_blank">Theme-Lx</a></li>
+        </ul>
+    </li>
+  </ul>
+  </nav>
+</div>
+
+<div class="gototop js-top">
+  <a href="#" class="js-gotop"><i class="fa fa-arrow-up"></i></a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.easing.min.js"></script>
+<script>
+(function () {
+	"use strict";
+	var goToTop = function() {
+		$(".js-gotop").on("click", function(event){
+			event.preventDefault();
+			$("html, body").animate({
+				scrollTop: $("html").offset().top
+			}, 500, "easeInOutExpo");
+			return false;
+		});
+		$(window).scroll(function(){
+			var $win = $(window);
+			if ($win.scrollTop() > 200) {
+				$(".js-top").addClass("active");
+			} else {
+				$(".js-top").removeClass("active");
+			}
+		});
+	};
+	$(function(){
+		goToTop();
+	});
+}());
+</script>
+
+
+</body>
+</html>
