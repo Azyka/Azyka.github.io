@@ -74,7 +74,7 @@
         <div class="avatar"><a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"></a></div>
         <span>2021-11-28</span>
         <h2>堆学习整理（一）</h2>
-        <div class="tags"><i class="fa fa-tag"></i><a class="tag-none-link" href="/tags/pwn-heap/" rel="tag">pwn heap</a></div>
+        <div class="tags"><i class="fa fa-tag"></i><a class="tag-none-link" href="/tags/pwn/" rel="tag">pwn</a></div>
         
       </div>
     </div>
@@ -137,6 +137,14 @@
 <li><p>tcache 为空时，如果 <code>fastbin/smallbin/unsorted bin</code> 中有 size 符合的 chunk，会先把 <code>fastbin/smallbin/unsorted bin</code> 中的 chunk 放到 tcache 中，直到填满。之后再从 tcache 中取；因此 chunk 在 bin 中和 tcache 中的顺序会反过来</p>
 </li>
 </ol>
+<h2 id="UAF"><a href="#UAF" class="headerlink" title="UAF"></a>UAF</h2><p>经典的就是double free，在fastbin或者tcache实现</p>
+<p>流程如下</p>
+<ol>
+<li>doublefree在fastbin会检验第一个chunk是否相同，且受malloc受fastbin size限制;在tcache上则不受大小限制，不过如果tcache存在对df的检测，即指向tcache的key指针，只有通过对指针的修改才能实现df</li>
+<li>修改freed chunk的bins链，实现任意地址写</li>
+<li>找libc基址</li>
+<li>现在有两个方法，一是改malloc__hook为one_gadget然后malloc，这需要特殊条件，但胜在简单；二是改free__hook为system地址，然后free一个内容为/bin/sh的chunk即可</li>
+</ol>
 <h2 id="Unlink"><a href="#Unlink" class="headerlink" title="Unlink"></a>Unlink</h2><ol>
 <li>要求：需要获取存储chunk地址的数组地址</li>
 <li>堆内容：可以控制chunk[a]中的内容，布置fd,bk分别为&amp;chunk[a]-0x18,&amp;chunk[a]-0x10,并堆溢出改写其相邻的fakechunk的prevsize和prev_inuse(和size在同一字节)。</li>
@@ -181,12 +189,12 @@
 <div class="lx-navigation">
 	<div class="lx-cover next lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-l.min.jpeg)">
 		<div class="overlay"></div>
-		<a class="copy" href="#">
+		<a class="copy" href="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/">
 			<div class="display-t">
 				<div class="display-tc">
 					<div>
 						<span>Next</span>
-						<h3>No newer post</h3>
+						<h3>对关系抽取综述...</h3>
 					</div>
 				</div>
 			</div>
@@ -211,7 +219,7 @@
 
 <footer>
   <div>
-  Copyright &copy; 2021.<a href="/">Azyka's Blog</a><br>Powered by <a href="https://hexo.io" target="_blank">Hexo</a> | Theme <a href="https://lx.js.org" target="_blank">Lx</a><br>
+  Copyright &copy; 2022.<a href="/">Azyka's Blog</a><br>Powered by <a href="https://hexo.io" target="_blank">Hexo</a> | Theme <a href="https://lx.js.org" target="_blank">Lx</a><br>
   </div>
 </footer>
 

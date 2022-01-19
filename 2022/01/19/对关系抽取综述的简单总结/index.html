@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content=#58b77a>
+  <title>对关系抽取综述的简单总结 | Azyka&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Azyka">
+  <meta name="keywords" content="">
+  <meta name="description" content="">
+  <script id="hexo-configurations">
+  var CONFIG = {
+    root: '/',
+    theme: 'lx',
+    version: '0.4.2',
+    localsearch:{
+      "enable": false,
+      "trigger": "auto",
+      "top_n_per_article": 1,
+      "unescape": false,
+      "preload": false
+      },
+    path: 'null'
+  };
+</script>
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/css/main.min.css">
+  
+  <style type="text/css">
+    pre,
+    code {
+      font-family: 'Fira Code', monospace;
+    }
+    html {
+      font-family: sans-serif;
+    }
+    body {
+      font-family: sans-serif;
+    }
+    h1, h2, h3, h4, h5, figure {
+      font-family: sans-serif;
+    }
+    .menu-container{
+      font-family: sans-serif;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.jside.menu.min.js"></script>
+	<script>
+	$(document).ready(function(){
+	$(".menu-container").jSideMenu({
+	    jSidePosition: "position-right",
+	    jSideSticky: true,
+	    jSideSkin: "greenish",
+	     });
+	}); 
+	</script>
+  
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira Code:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css">
+<meta name="generator" content="Hexo 5.4.0"></head>
+<body>
+<div class="single">
+
+<div id="page">
+<div class="header">
+  <div id="lx-aside" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/post_cover.min.jpeg)" data-stellar-background-ratio="0.5">
+    <div class="overlay">
+      
+      <div class="page-title">
+        <div class="avatar"><a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"></a></div>
+        <span>2022-01-19</span>
+        <h2>对关系抽取综述的简单总结</h2>
+        <div class="tags"><i class="fa fa-tag"></i><a class="tag-none-link" href="/tags/%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96/" rel="tag">关系抽取</a></div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+<div id="lx-main-content">
+  <div class="lx-post">
+    <div class="lx-entry padding">
+      <div>
+        <div class="note info">
+            <p>参考文献：Relation Extraction Using Distant Supervision: A Survey 2019发表于<a target="_blank" rel="noopener" href="https://dl.acm.org/toc/csur/2019/51/5">ACM Computing Surveys</a>（工程技术1区top）</p><p>开始学习关系抽取，先读篇综述理解下基本概念，放点参考文献供以后学习</p>
+          </div>
+
+<span id="more"></span>
+
+<h2 id="分类"><a href="#分类" class="headerlink" title="分类"></a>分类</h2><p>传统综述中把关系抽取分为2类：supervised and semi-supervised methods</p>
+<p>监督方法：需要标注数据，获取成本高</p>
+<p>​                    模型只适合处理训练集中文本域，对其他文本内容处理效果不好</p>
+<p>半监督方法：大大减少了人工成本，仍需要初始的关系对</p>
+<p>无监督方法：效果太差了，不讨论</p>
+<p>远程监督（Distant supervision）：结合半监督和无监督的优点，使用三元组（通常使用Resource Description Framework标准表示）和知识库，但比传统方法更容易产生噪音(missing labels (false negatives) and wrong labels (false positives) )</p>
+<p>远程监督分为3个方面：noise reduction approaches, embeddings-based approaches, and approaches leveraging auxiliary information</p>
+<p>Noise reduction approaches：解决远程监督中的各种问题，在知识库提供关系的前提下预测实体间关系</p>
+<p>Embeddings-based approaches：使用实体和关系的向量表示来实现关系抽取。</p>
+<p>approaches leveraging auxiliary information：使用辅助信息，比如实体类别、逻辑等辅助关系抽取</p>
+<p>上面三个方法互不冲突，可以相互结合</p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220118085727754.png" alt="1"></p>
+<p>对上次没提到的一些名词解释：</p>
+<ul>
+<li>bag：包含相同实体对的一连串句子</li>
+<li>mention-level relation extraction：给出一组包含同一实体对的句子，判断他们之间的关系是否相同</li>
+</ul>
+<h2 id="关系抽取具体定义"><a href="#关系抽取具体定义" class="headerlink" title="关系抽取具体定义"></a>关系抽取具体定义</h2><p>这里只讨论priori先验关系和binary relations二元关系</p>
+<p>关系和实体并没有严格的定义，通常情况下我们定义</p>
+<p>实体：名次或任何能作为主体的在知识库中的一个条目</p>
+<p>关系：三元组中连接2个实体的就是关系</p>
+<p>基本方法：</p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220101135614048.png" alt="2"></p>
+<p>Preprocessing预处理：part-of-speech (POS) taggers（用于标识名次、介词等）</p>
+<p>​                                        dependency parsers（基于二元关系表示语法结构，如 Dependency tree依赖树）</p>
+<p>​                                        named entity recognizers (NER)（识别可能的实体）</p>
+<p>Entity Matching实体匹配：将上一步识别的实体与知识库中实体进行匹配</p>
+<p>Feature Extraction特征提取:这里是为了disambiguation消除歧义，需要用到预处理中提取到的信息</p>
+<p> Labelling标识：获取每一个实体对在知识库中的标识</p>
+<p>测试集的获取方法同理，只是去掉最后一步</p>
+<p>基本关系抽取的主要问题：</p>
+<ol>
+<li>从知识库中自动获得的标签是有噪声的，因为提到一对实体的句子不一定表达关系;此外，不同的句子提到同一实体对，可以表达不同的关系。</li>
+<li>知识库的不完全性对模型的训练和评价都造成了不利影响。</li>
+</ol>
+<h2 id="noise-reduction消除噪音"><a href="#noise-reduction消除噪音" class="headerlink" title="noise reduction消除噪音"></a>noise reduction消除噪音</h2><p>噪音是什么？   类似于概率统计中的第一类错误和第二类错误</p>
+<p>本文详细讲述了4种方法</p>
+<h3 id="At-least-one-model"><a href="#At-least-one-model" class="headerlink" title="At-least-one model"></a>At-least-one model</h3><p>考虑到两个实体之间的关系不止一种，如果两个实体参与了一种关系，那么至少有一个提到这两个实体的句子可以表达这种关系</p>
+<p>相反的，我们称一般的模型为multi-instance single-label多个实例、单个标签</p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220101145149365.png" alt="3"></p>
+<p>由于无法确定具体关系，先前的labelling无法进行，At-least-one model模型还需要对可能的关系进行预测，同样通过流水线方法实现</p>
+<p>模型包含3大变量：</p>
+<ul>
+<li>X：包含 dependency path实体间依赖树等额外信息的词向量</li>
+<li>Y：标识实体关系</li>
+<li>Z：标识标识方法i是否是一个已知关系</li>
+</ul>
+<p>算法具体实现和参数参考此文章 Sebastian Riedel, Limin Yao, and Andrew McCallum. 2010. Modeling relations and their mentions without labeled text. In Proceedings of the European Conference on Machine Learning and Knowledge Discovery in Databases (ECML PKDD’10). Springer, 148–163</p>
+<h3 id="Data-Incompleteness-Handling"><a href="#Data-Incompleteness-Handling" class="headerlink" title="Data Incompleteness Handling"></a>Data Incompleteness Handling</h3><p>知识库的不完整性会导致模型识别错误：因为远程识别的基本方法是从知识库中匹配positive，消去negative的关系，训练中对negative的生成方式是提供不相关的实体对。这意味着在训练中标注的nagative可能并不等于实际关系的不存在。</p>
+<p>不同的解决方法：</p>
+<ol>
+<li>MIML − RE<ul>
+<li>Bonan Min, Ralph Grishman, Li Wan, Chang Wang, and David Gondek. 2013. Distant supervision for relation extraction with an incomplete knowledge base. In Proceedings of the Human Language Technologies Conference of the North American Chapter of the Association of Computational Linguistics. 777–782.</li>
+</ul>
+</li>
+<li>MultiR<ul>
+<li>Alan Ritter, Luke Zettlemoyer, Oren Etzioni, et al. 2013. Modeling missing data in distant supervision for information extraction. Trans. Assoc. Comput. Linguis. 1, 367–378.</li>
+<li>Wei Xu, Raphael Hoffmann, Le Zhao, and Ralph Grishman. 2013. Filling knowledge base gaps for distant supervision of relation extraction. In Proceedings of the 51st Annual Meeting of the Association for Computational Linguistics (ACL’13). 665–670.</li>
+</ul>
+</li>
+<li>matrix completion对上述两个方法的总结性表述<ul>
+<li>Miao Fan, Deli Zhao, Qiang Zhou, Zhiyuan Liu, Thomas Fang Zheng, and Edward Y. Chang. 2014. Distant supervision for relation extraction with matrix completion. In Proceedings of the 52nd Annual Meeting of the Association for Computational Linguistics (ACL’14). 839–849.</li>
+<li>Shiqian Ma, Donald Goldfarb, and Lifeng Chen. 2011. Fixed point and Bregman iterative methods for matrix rank minimization. Math. Program. 128 (2011), 321–353.</li>
+</ul>
+</li>
+</ol>
+<h3 id="Topic-Models"><a href="#Topic-Models" class="headerlink" title="Topic Models"></a>Topic Models</h3><p>topic：主题表示经常一起出现在文档中的术语(单词或模式)集群</p>
+<p>这个方法旨在为每一个术语分配topic，计算单词w属于主题t的条件概率</p>
+<p>mention-level为每个句子单独分配一个关系，而此方法能够找到文本模式和关系之间更一般的依赖关系，这可以提高性能，并且可以根据已知的模式套用到未知的模式中，比如   A为在B的教授工作与A为在B的人类学家工作。</p>
+<p>参考文献：</p>
+<ul>
+<li>David M. Blei, Andrew Y. Ng, and Michael I. Jordan. 2003. Latent Dirichlet allocation. J. Mach. Learn. Res. 3 (2003), 993–1022.</li>
+</ul>
+<h3 id="Pattern-Correlations"><a href="#Pattern-Correlations" class="headerlink" title="Pattern Correlations"></a>Pattern Correlations</h3><p>这种方法是对训练数据的过滤，将表达关系的模式与不表达关系的模式区分开，设置一个不表达对应关系的模式列表。</p>
+<p>如果一个句子包含否定列表中的一个模式，那么对应的标签将被删除。因此，它们减少了远距离监督所分配的错误标签的数量。</p>
+<p>参考文献：</p>
+<ul>
+<li>Shingo Takamatsu, Issei Sato, and Hiroshi Nakagawa. 2012. Reducing wrong labels in distant supervision for relation extraction. In Proceedings of the 50th Annual Meeting of the Association for Computational Linguistics. 721–729.</li>
+<li>Mike Mintz, Steven Bills, Rion Snow, and Dan Jurafsky. 2009. Distant supervision for relation extraction without labeled data. In Proceedings of the Joint Conference of the 47th Annual Meeting of the ACL and the 4th International Joint Conference on Natural Language Processing of the AFNLP. 1003–1011.</li>
+<li>Bonan Min, Xiang Li, Ralph Grishman, and Ang Sun. 2012. New york university 2012 system for KBP slot filling. In Proceedings of the 5th Text Analysis Conference (TAC’12).</li>
+</ul>
+<h2 id="EMBEDDINGS-BASED-METHODS词向量"><a href="#EMBEDDINGS-BASED-METHODS词向量" class="headerlink" title="EMBEDDINGS-BASED METHODS词向量"></a>EMBEDDINGS-BASED METHODS词向量</h2><p>noise reduction中的方法基于文本特征，而此方法将关系和实体对的文本表示映射到向量空间的方法，它的意义在于把文本处理和数学、机器学习连接起来，问题在于如何用NLP技术生成高质量地embedding</p>
+<p>embedding就是从离散对象到实数向量的映射过程，通常通过named entity recognition tool命名实体识别工具获得</p>
+<p>Skip-gram模型获得词向量： Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean. 2013. Efficient estimation of word representations in vector space. arXiv Preprint arXiv:1301.3781.</p>
+<p>分段卷积神经网络(PCNNs)进行关系提取： Daojian Zeng, Kang Liu, Yubo Chen, and Jun Zhao. 2015. Distant supervision for relation extraction via piecewise convolutional neural networks. In Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing (EMNLP’15). 1753–1762</p>
+<h2 id="LEVERAGING-AUXILIARY-INFORMATION-FOR-SUPERVISION利用辅助信息"><a href="#LEVERAGING-AUXILIARY-INFORMATION-FOR-SUPERVISION利用辅助信息" class="headerlink" title="LEVERAGING AUXILIARY INFORMATION FOR SUPERVISION利用辅助信息"></a>LEVERAGING AUXILIARY INFORMATION FOR SUPERVISION利用辅助信息</h2><ol>
+<li>直接监督与远程监督结合</li>
+<li>实体识别的影响</li>
+<li>关系之间的逻辑连接（Logical Formulae）</li>
+</ol>
+<h2 id="数据集和模型评估"><a href="#数据集和模型评估" class="headerlink" title="数据集和模型评估"></a>数据集和模型评估</h2><p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220117232049655.png" alt="4"></p>
+<p>KBP：Knowledge Base Population</p>
+<p>远程监督要求大规模的数据集以保证每个特征出现的次数足够多</p>
+<h3 id="评价"><a href="#评价" class="headerlink" title="评价"></a>评价</h3><p>指标：</p>
+<ul>
+<li><p>精确率：Precision,针对预测结果而言的，它表示的是预测为正的样本中有多少是真正的正样本</p>
+</li>
+<li><p>召回率：Recall,针对原来的样本而言的，它表示的是样本中的正例有多少被预测正确了</p>
+</li>
+<li><p>F值：综合考虑精确率和召回率F1 = （2*P*R）/(P+R)</p>
+</li>
+</ul>
+<p>常用的比较方法是precision-recall curves</p>
+<p>由于知识库中的关系不完整性，正确提取的关系数量是被低估的。此外，实际提及关系的数量是未知的;它可以粗略估计为被提取的实体对之间在知识库中的关系数。</p>
+<p>通常，研究人员会进行两种类型的评估:</p>
+<p>•held-out evaluations，在训练过程中隐藏部分知识库数据，并将新提取的关系与该封锁数据进行比较;</p>
+<p>•manual evaluations，其中一小部分数据由人工评估人员注释，通常使用众包。</p>
+<p>这两种方法都存在一些缺点。在held-out评估中，知识库不完整的事实会影响测试集，即:，所提取的关系可能被错误的标记是不正确的。因此，保留评估低估了算法的性能。然而，手工评估提供更准确的结果，但只适用于数据的一个相对较小的子集。</p>
+<p>不知道各位有没有注意到，以上的内容似乎都是在NER标签实体识别的基础上考虑的关系抽取，并没有提到联合学习。关于联合学习的处理可能还要在进一步拓展，不过也可以先从看现有的模型代码开始。</p>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div class="lx-navigation">
+	<div class="lx-cover next lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-l.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="#">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Next</span>
+						<h3>No newer post</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+        <div class="lx-cover prev lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-r.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="/2021/11/28/%E5%A0%86%E5%AD%A6%E4%B9%A0%E6%95%B4%E7%90%86%EF%BC%88%E4%B8%80%EF%BC%89/">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Prev</span>
+						<h3>堆学习整理（一）</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+</div>
+
+</div>
+
+<footer>
+  <div>
+  Copyright &copy; 2022.<a href="/">Azyka's Blog</a><br>Powered by <a href="https://hexo.io" target="_blank">Hexo</a> | Theme <a href="https://lx.js.org" target="_blank">Lx</a><br>
+  </div>
+</footer>
+
+</div>
+
+<button class="hamburger hamburger--arrow-r" type="button" title="menu">
+    <div class="hamburger-box">
+      <div class="hamburger-inner"></div>
+    </div>
+</button>
+<div class="menu visibility">
+  <div class="menu-head">
+    <span class="layer">
+      <div class="col">
+        <div class="row for-pic">
+          <div class="profile-pic">
+            <a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"/></a>
+          </div>
+        </div>
+        <div class="row for-name">
+          <p>Azyka</p>
+          <span class="tagline">Try and Trail</span>
+        </div>
+      </div>
+    </span>
+  </div>
+  <nav class="menu-container">
+  <ul class="menu-items">
+    <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
+    <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-bookmark fa-fw"></i>Pages</span>
+        <ul>
+          <li><a href="/guestbook/">Guestbook</a></li>
+        <li><a href="/about/">About</a></li>
+        </ul>
+    </li>
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-link fa-fw"></i>Friends</span>
+        <ul>
+          <li> <a href="https://lx.js.org" target="_blank">Theme-Lx</a></li>
+        </ul>
+    </li>
+  </ul>
+  </nav>
+</div>
+
+<div class="gototop js-top">
+  <a href="#" class="js-gotop"><i class="fa fa-arrow-up"></i></a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.easing.min.js"></script>
+<script>
+(function () {
+	"use strict";
+	var goToTop = function() {
+		$(".js-gotop").on("click", function(event){
+			event.preventDefault();
+			$("html, body").animate({
+				scrollTop: $("html").offset().top
+			}, 500, "easeInOutExpo");
+			return false;
+		});
+		$(window).scroll(function(){
+			var $win = $(window);
+			if ($win.scrollTop() > 200) {
+				$(".js-top").addClass("active");
+			} else {
+				$(".js-top").removeClass("active");
+			}
+		});
+	};
+	$(function(){
+		goToTop();
+	});
+}());
+</script>
+
+
+</body>
+</html>
