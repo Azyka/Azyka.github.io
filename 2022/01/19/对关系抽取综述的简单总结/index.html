@@ -101,7 +101,7 @@
 <p>Embeddings-based approaches：使用实体和关系的向量表示来实现关系抽取。</p>
 <p>approaches leveraging auxiliary information：使用辅助信息，比如实体类别、逻辑等辅助关系抽取</p>
 <p>上面三个方法互不冲突，可以相互结合</p>
-<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220118085727754.png" alt="1"></p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/image-20220118085727754.png" alt="1"></p>
 <p>对上次没提到的一些名词解释：</p>
 <ul>
 <li>bag：包含相同实体对的一连串句子</li>
@@ -112,7 +112,7 @@
 <p>实体：名次或任何能作为主体的在知识库中的一个条目</p>
 <p>关系：三元组中连接2个实体的就是关系</p>
 <p>基本方法：</p>
-<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220101135614048.png" alt="2"></p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/image-20220101135614048.png" alt="2"></p>
 <p>Preprocessing预处理：part-of-speech (POS) taggers（用于标识名次、介词等）</p>
 <p>​                                        dependency parsers（基于二元关系表示语法结构，如 Dependency tree依赖树）</p>
 <p>​                                        named entity recognizers (NER)（识别可能的实体）</p>
@@ -129,7 +129,7 @@
 <p>本文详细讲述了4种方法</p>
 <h3 id="At-least-one-model"><a href="#At-least-one-model" class="headerlink" title="At-least-one model"></a>At-least-one model</h3><p>考虑到两个实体之间的关系不止一种，如果两个实体参与了一种关系，那么至少有一个提到这两个实体的句子可以表达这种关系</p>
 <p>相反的，我们称一般的模型为multi-instance single-label多个实例、单个标签</p>
-<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220101145149365.png" alt="3"></p>
+<p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/image-20220101145149365.png" alt="3"></p>
 <p>由于无法确定具体关系，先前的labelling无法进行，At-least-one model模型还需要对可能的关系进行预测，同样通过流水线方法实现</p>
 <p>模型包含3大变量：</p>
 <ul>
@@ -180,7 +180,7 @@
 <li>实体识别的影响</li>
 <li>关系之间的逻辑连接（Logical Formulae）</li>
 </ol>
-<h2 id="数据集和模型评估"><a href="#数据集和模型评估" class="headerlink" title="数据集和模型评估"></a>数据集和模型评估</h2><p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93%5Cimage-20220117232049655.png" alt="4"></p>
+<h2 id="数据集和模型评估"><a href="#数据集和模型评估" class="headerlink" title="数据集和模型评估"></a>数据集和模型评估</h2><p><img src="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/image-20220117232049655.png" alt="4"></p>
 <p>KBP：Knowledge Base Population</p>
 <p>远程监督要求大规模的数据集以保证每个特征出现的次数足够多</p>
 <h3 id="评价"><a href="#评价" class="headerlink" title="评价"></a>评价</h3><p>指标：</p>
@@ -207,12 +207,12 @@
 <div class="lx-navigation">
 	<div class="lx-cover next lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-l.min.jpeg)">
 		<div class="overlay"></div>
-		<a class="copy" href="#">
+		<a class="copy" href="/2022/01/20/%E4%BB%8EAFL%E5%BC%80%E5%A7%8Bfuzzing/">
 			<div class="display-t">
 				<div class="display-tc">
 					<div>
 						<span>Next</span>
-						<h3>No newer post</h3>
+						<h3>从AFL开始f...</h3>
 					</div>
 				</div>
 			</div>

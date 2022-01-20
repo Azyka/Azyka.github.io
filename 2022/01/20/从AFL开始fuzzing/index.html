@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content=#58b77a>
+  <title>从AFL开始fuzzing | Azyka&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Azyka">
+  <meta name="keywords" content="">
+  <meta name="description" content="">
+  <script id="hexo-configurations">
+  var CONFIG = {
+    root: '/',
+    theme: 'lx',
+    version: '0.4.2',
+    localsearch:{
+      "enable": false,
+      "trigger": "auto",
+      "top_n_per_article": 1,
+      "unescape": false,
+      "preload": false
+      },
+    path: 'null'
+  };
+</script>
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/css/main.min.css">
+  
+  <style type="text/css">
+    pre,
+    code {
+      font-family: 'Fira Code', monospace;
+    }
+    html {
+      font-family: sans-serif;
+    }
+    body {
+      font-family: sans-serif;
+    }
+    h1, h2, h3, h4, h5, figure {
+      font-family: sans-serif;
+    }
+    .menu-container{
+      font-family: sans-serif;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.jside.menu.min.js"></script>
+	<script>
+	$(document).ready(function(){
+	$(".menu-container").jSideMenu({
+	    jSidePosition: "position-right",
+	    jSideSticky: true,
+	    jSideSkin: "greenish",
+	     });
+	}); 
+	</script>
+  
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira Code:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css">
+<meta name="generator" content="Hexo 5.4.0"></head>
+<body>
+<div class="single">
+
+<div id="page">
+<div class="header">
+  <div id="lx-aside" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/post_cover.min.jpeg)" data-stellar-background-ratio="0.5">
+    <div class="overlay">
+      
+      <div class="page-title">
+        <div class="avatar"><a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"></a></div>
+        <span>2022-01-20</span>
+        <h2>从AFL开始fuzzing</h2>
+        <div class="tags"><i class="fa fa-tag"></i><a class="tag-none-link" href="/tags/Fuzzing/" rel="tag">Fuzzing</a></div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+<div id="lx-main-content">
+  <div class="lx-post">
+    <div class="lx-entry padding">
+      <div>
+        <div class="note info">
+            <p>AFL的入门学习（一）</p><p>代码来源<a target="_blank" rel="noopener" href="https://github.com/mykter/afl-training/tree/main">https://github.com/mykter/afl-training/tree/main</a></p>
+          </div>
+
+<span id="more"></span>
+
+<h2 id="关于Fuzzing"><a href="#关于Fuzzing" class="headerlink" title="关于Fuzzing"></a>关于Fuzzing</h2><p>fuzzing，模糊测试。其与包括静态分析、动态分析、代码审计等传统漏洞检测方式的最大区别，就在于它可以大规模随机或半随机地生成测试数据，并以使程序crash为目标进行测试。这种方法被证明相当高效，可以敏锐地发掘代码中潜在地各种堆栈溢出等常见漏洞，也能用assert去调试非内存越界的问题（比如CVE-2014-3570 in OpenSSL）。</p>
+<p>同样，fuzzing也有一定的局限性</p>
+<ul>
+<li>难以确定何时停止</li>
+<li>对目标的设置和输入源都由你自己控制</li>
+<li>可能卡在某一个对数据的检测中不能自拔</li>
+<li>只有部分类型的问题可以被fuzzer发现</li>
+</ul>
+<p>不过fuzzing不失为一种强大的测试方法，就先从声名远扬的AFL(<a target="_blank" rel="noopener" href="http://lcamtuf.coredump.cx/afl/">American fuzzy lop</a>)的使用开始吧。</p>
+<h2 id="quickstart"><a href="#quickstart" class="headerlink" title="quickstart"></a>quickstart</h2><p>本次测试源码也都来自<a target="_blank" rel="noopener" href="https://github.com/mykter/afl-training/tree/main">afl-training</a></p>
+<p>只需要两行代码就能感受到afl的快乐了</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">//在对源码调试时，使用afl提供的gcc作为gcc/g++的wrapper编译目标程序才能让afl进行插桩</span><br><span class="line">CC=afl-clang-fast AFL_HARDEN=1 make  </span><br><span class="line">afl-fuzz -i inputs -o out ./vulnerable</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2022/01/20/%E4%BB%8EAFL%E5%BC%80%E5%A7%8Bfuzzing/image-20220119125948344.png" alt="1"></p>
+<p>如果出现这个提示只需要照做就行</p>
+<p>建议在非root的情况下运行，这样产生的结果不会有权限问题。运行一段时间后，在out的crashes中查看结果，可以用cat打开，如果你觉得乱码看其来不舒服，也可以用vim打开。复现结果时，直接把这些crash输入就可以了</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./vulnerable &lt; out/default/crashes/[file]</span><br></pre></td></tr></table></figure>
+
+
+
+<p>afl基本功能的实现我们可以从图中的总览来理解</p>
+<p><img src="/2022/01/20/%E4%BB%8EAFL%E5%BC%80%E5%A7%8Bfuzzing/image-20220119170921897.png" alt="2"></p>
+<h2 id="harness"><a href="#harness" class="headerlink" title="harness"></a>harness</h2><p>上面是对afl基本操作的体验，实际情况下的程序会有不同功能，我们需要用harness进行具体的调试</p>
+<ol>
+<li><p>编写harness，适用于有程序源码的情况</p>
+<p>harness基本要求：</p>
+<ul>
+<li><p>可运行</p>
+</li>
+<li><p>有效对输入内容进行处理</p>
+<p>数据输入有两种方法，一种使直接用stdin输入</p>
+<p>编写程序从stdin读取数据，输入到原代码中要调试的位置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">//buffer型</span><br><span class="line">ssize_t length;</span><br><span class="line">char input[SIZE] = &#123;0&#125;;</span><br><span class="line">length = read(STDIN_FILENO, input, SIZE); //STDIN_FILENO为source，input为dest，SIZE为自定义常量</span><br><span class="line"></span><br><span class="line">//int型</span><br><span class="line">int a = 0;</span><br><span class="line">read(STDIN_FILENO, &amp;a, 4);   //直接从输入流中转换一个整数</span><br></pre></td></tr></table></figure>
+
+<p>另一种是使用文件输入</p>
+<p>步骤分为三步：</p>
+<ol>
+<li>从命令行读取文件地址</li>
+<li>代码打开文件，读取到缓冲区</li>
+<li>传输内容到测试区块</li>
+</ol>
+<p>对不同类型的数据，input不需要作特别的更改，afl的输入算法会自动生成合理的数据</p>
+</li>
+<li><p>运行结束自动退出</p>
+</li>
+<li><p>对非目标的crash，使用error代替crash</p>
+</li>
+<li><p>跳过程序中可能存在的对数据的检测（否则afl会花费大量时间来生成可以通过检测的数据）</p>
+</li>
+</ul>
+</li>
+<li><p>把原代码和harness编译到一起</p>
+<p>harness</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;string.h&gt;</span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line"></span><br><span class="line">#include &quot;library.h&quot;</span><br><span class="line"></span><br><span class="line">// 确定一个能覆盖你要调试部分所需输入的最大size</span><br><span class="line">#define SIZE 100</span><br><span class="line"></span><br><span class="line">int main(int argc, char* argv[]) &#123;</span><br><span class="line">	if((argc == 2) &amp;&amp; strcmp(argv[1], &quot;echo&quot;) == 0) &#123;</span><br><span class="line">		// 确定要调试的功能，当然也可直接一起调试，输入内容不重要，长度设置好就行了</span><br><span class="line">		char input[SIZE] = &#123;0&#125;;</span><br><span class="line"></span><br><span class="line">		ssize_t length;</span><br><span class="line">		length = read(STDIN_FILENO, input, SIZE);</span><br><span class="line"></span><br><span class="line">		lib_echo(input, length);</span><br><span class="line">	&#125; else if ((argc == 2) &amp;&amp; strcmp(argv[1], &quot;mul&quot;) == 0) &#123;</span><br><span class="line">		int a,b = 0;</span><br><span class="line">		read(STDIN_FILENO, &amp;a, 4);</span><br><span class="line">		read(STDIN_FILENO, &amp;b, 4);</span><br><span class="line">		printf(&quot;%d\n&quot;, lib_mul(a,b));</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		printf(&quot;Usage: %s mul|echo\n&quot;, argv[0]);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">AFL_HARDEN=1 afl-clang-fast harness.c 原代码.c -o 测试程序名称</span><br><span class="line">#using one of afl-clang-fast, afl-clang, or afl-gcc</span><br></pre></td></tr></table></figure></li>
+<li><p>开始调试</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz -i 输入文件夹名 -o 输出文件夹 ./测试程序</span><br></pre></td></tr></table></figure>
+
+<p>可以通过对(argc == 2) &amp;&amp; strcmp(argv[1], “mul”) == 0的if判断，区别对哪一个部分进行调试，把具体调试方法写在if中，运行时就能实现功能的选择性调试。<br>此时应使用     afl-fuzz -i in -o out ./harness echo    执行</p>
+</li>
+</ol>
+<p>跑一会就出结果了，很简单的程序，输入pop！就自动结束进程。</p>
+<p><img src="/2022/01/20/%E4%BB%8EAFL%E5%BC%80%E5%A7%8Bfuzzing/image-20220116164828196.png" alt="3"></p>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div class="lx-navigation">
+	<div class="lx-cover next lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-l.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="#">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Next</span>
+						<h3>No newer post</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+        <div class="lx-cover prev lx-cover-sm" style="background-image: url(https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/images/footer-r.min.jpeg)">
+		<div class="overlay"></div>
+		<a class="copy" href="/2022/01/19/%E5%AF%B9%E5%85%B3%E7%B3%BB%E6%8A%BD%E5%8F%96%E7%BB%BC%E8%BF%B0%E7%9A%84%E7%AE%80%E5%8D%95%E6%80%BB%E7%BB%93/">
+			<div class="display-t">
+				<div class="display-tc">
+					<div>
+						<span>Prev</span>
+						<h3>对关系抽取综述...</h3>
+					</div>
+				</div>
+			</div>
+		</a>
+	</div>
+</div>
+
+</div>
+
+<footer>
+  <div>
+  Copyright &copy; 2022.<a href="/">Azyka's Blog</a><br>Powered by <a href="https://hexo.io" target="_blank">Hexo</a> | Theme <a href="https://lx.js.org" target="_blank">Lx</a><br>
+  </div>
+</footer>
+
+</div>
+
+<button class="hamburger hamburger--arrow-r" type="button" title="menu">
+    <div class="hamburger-box">
+      <div class="hamburger-inner"></div>
+    </div>
+</button>
+<div class="menu visibility">
+  <div class="menu-head">
+    <span class="layer">
+      <div class="col">
+        <div class="row for-pic">
+          <div class="profile-pic">
+            <a href="/"><img src="https://z3.ax1x.com/2021/11/28/ouyJeO.jpg" alt="Azyka"/></a>
+          </div>
+        </div>
+        <div class="row for-name">
+          <p>Azyka</p>
+          <span class="tagline">Try and Trail</span>
+        </div>
+      </div>
+    </span>
+  </div>
+  <nav class="menu-container">
+  <ul class="menu-items">
+    <li><a href="/"><i class="fa fa-home fa-fw"></i>Home</a></li>
+    <li><a href="/archives/"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+    
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-bookmark fa-fw"></i>Pages</span>
+        <ul>
+          <li><a href="/guestbook/">Guestbook</a></li>
+        <li><a href="/about/">About</a></li>
+        </ul>
+    </li>
+    <li class="has-sub"><span class="dropdown-heading">
+      <i class="fa fa-link fa-fw"></i>Friends</span>
+        <ul>
+          <li> <a href="https://lx.js.org" target="_blank">Theme-Lx</a></li>
+        </ul>
+    </li>
+  </ul>
+  </nav>
+</div>
+
+<div class="gototop js-top">
+  <a href="#" class="js-gotop"><i class="fa fa-arrow-up"></i></a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/js/jquery.easing.min.js"></script>
+<script>
+(function () {
+	"use strict";
+	var goToTop = function() {
+		$(".js-gotop").on("click", function(event){
+			event.preventDefault();
+			$("html, body").animate({
+				scrollTop: $("html").offset().top
+			}, 500, "easeInOutExpo");
+			return false;
+		});
+		$(window).scroll(function(){
+			var $win = $(window);
+			if ($win.scrollTop() > 200) {
+				$(".js-top").addClass("active");
+			} else {
+				$(".js-top").removeClass("active");
+			}
+		});
+	};
+	$(function(){
+		goToTop();
+	});
+}());
+</script>
+
+
+</body>
+</html>
