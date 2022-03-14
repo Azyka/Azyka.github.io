@@ -1,1 +1,9 @@
 /*--put your own style sheet here--*/
+#page {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  width: 100%;
+  height: 100%;
+  transition: 0.5s;
+}

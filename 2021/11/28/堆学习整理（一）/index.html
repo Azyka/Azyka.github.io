@@ -27,7 +27,7 @@
 
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/theme-lx@0.4.2/source/dist/css/main.min.css">
-  
+  <link rel="stylesheet" href="/css/custom.css">
   <style type="text/css">
     pre,
     code {
@@ -85,7 +85,7 @@
     <div class="lx-entry padding">
       <div>
         <div class="note info">
-            <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p><p>这篇文章主要总结了关于fastbin、unsorted bin和tcache的部分内容</p>
+            <p>学习堆的过程中，我根据<a target="_blank" rel="noopener" href="https://ctf-wiki.org/pwn/linux/user-mode/environment/">ctf-wiki</a>上关于堆的内容中重点做了一些简单整理</p><p>这篇文章主要总结了关于fastbin、unsorted bin内容</p>
           </div>
 
 <span id="more"></span>
@@ -105,7 +105,7 @@
 <h2 id="unsorted-bin"><a href="#unsorted-bin" class="headerlink" title="unsorted bin"></a>unsorted bin</h2><ol>
 <li><p>双链表</p>
 </li>
-<li><p>大小不符合fastbin</p>
+<li><p>大小不符合fastbin，可以看作是chunk进入对应位置前的缓冲区</p>
 </li>
 <li><p>第一个进入的chunk，其fd,bk指向main_arean固定偏移处，后续<strong>bk指向后进入的chunk，fd指向先进入的chunk</strong>，与main_arean构成循环双向链表</p>
 </li>
@@ -113,28 +113,6 @@
 </li>
 <li><p>使用方式：Unsorted Bin 在使用的过程中，采用的遍历顺序是 <strong>FIFO</strong>，<strong>即插入的时候插入到 unsorted bin 的头部，取出的时候从链表尾获取</strong>。</p>
 <p>在程序 malloc 时，如果在 fastbin，small bin 中找不到对应大小的 chunk，就会尝试从 Unsorted Bin 中寻找 chunk。如果取出来的 chunk 大小刚好满足，就会直接返回给用户，否则就会把这些 chunk 分别插入到对应的 bin 中。</p>
-</li>
-</ol>
-<h2 id="Tcache"><a href="#Tcache" class="headerlink" title="Tcache"></a>Tcache</h2><ol>
-<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> 。</p>
-</li>
-<li><p>free 内存，且 size 小于 small bin size 时</p>
-<p>tcache 出现之前会放到 fastbin 或者 unsorted bin 中</p>
-<p>tcache 出现后：</p>
-<ul>
-<li>先放到对应的 tcache 中，直到 tcache 被填满（默认是 7 个）</li>
-<li>tcache 被填满之后，再次 free 的内存和之前一样被放到 fastbin 或者 unsorted bin 中</li>
-<li>tcache 中的 chunk 不会合并（不取消 inuse bit）</li>
-<li><strong>LIFO</strong></li>
-</ul>
-</li>
-<li><p>malloc 内存，且 size 在 tcache 范围内</p>
-</li>
-<li><p>先从 tcache 取 chunk，直到 tcache 为空、</p>
-</li>
-<li><p>tcache 为空后，从 bin 中找</p>
-</li>
-<li><p>tcache 为空时，如果 <code>fastbin/smallbin/unsorted bin</code> 中有 size 符合的 chunk，会先把 <code>fastbin/smallbin/unsorted bin</code> 中的 chunk 放到 tcache 中，直到填满。之后再从 tcache 中取；因此 chunk 在 bin 中和 tcache 中的顺序会反过来</p>
 </li>
 </ol>
 <h2 id="UAF"><a href="#UAF" class="headerlink" title="UAF"></a>UAF</h2><p>经典的就是double free，在fastbin或者tcache实现</p>
@@ -165,7 +143,7 @@
 <p>可以看到只需要满足前后两个chunksize的相关条件就能正常进fastbin</p>
 <p>free后再次malloc对应size即可获得fakechunk地址处的一个chunk</p>
 <p>fastbin attack的基本用法是获取一个已知地址的chunk然后修改内容</p>
-<p>此外还有关于global_max_fat的用法，需要结合unsortedbin attack</p>
+<p>此外还有关于global_max_fat的用法，需要结合unsortedbin attack或者largebin attack</p>
 <p>基本思想就是利用fastbin的单链表和字节错位的方式从已知地址上分配一个chunk出来改写</p>
 <h2 id="Unsorted-Bin-attack"><a href="#Unsorted-Bin-attack" class="headerlink" title="Unsorted Bin attack"></a>Unsorted Bin attack</h2><p>修改chunk的bk为&amp;target-0x10,fd为任意值都不影响</p>
 <p>通过malloc出这个chunk实现任意地址写，但之后可能会导致无法使用unsortedbin</p>
@@ -174,11 +152,10 @@
 <p>还有就是修改 heap 中的 global_max_fast 来使得更大的 chunk 可以被视为 fast bin，这样我们就可以去执行一些 fast bin attack 了。</p>
 <ol>
 <li><p>改写 <code>global_max_fast</code> 为一个较大的值，然后释放一个较大的堆块时，由于fastbins数组空间是有限的，其相对偏移将会往后覆盖，如果释放堆块的size可控，就可实现往fastbins数组（main_arena）后的任意地址写入所堆块的地址。</p>
-<p>实现任意地址写的方式是：通过地址与fastbin数组的偏移计算出所需 <code>free</code> 的堆块的size，然后释放相应的堆块，即可实现往该地址写入堆块的地址以进一步利用。</p>
+<p>实现任意地址写的方式是：通过地址与fastbin数组的偏移计算出所需 free 的堆块的size，然后释放相应的堆块，即可实现往该地址写入堆块的地址以进一步利用。</p>
 <p>计算偏移的代码可以如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fastbin_ptr=libc_base+libc.symbols[&#x27;main_arena&#x27;]+8</span><br><span class="line">idx=(target_addr-fastbin_ptr)/8</span><br><span class="line">size=idx*0x10+0x20</span><br></pre></td></tr></table></figure>
-
-<p>或者仍然使用fastbin attack，只是少了global_max_fast的限制</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fastbin_ptr=libc_base+libc.symbols[&#x27;main_arena&#x27;]+8</span><br><span class="line">idx=(target_addr-fastbin_ptr)/8</span><br><span class="line">size=idx*0x10+0x20</span><br></pre></td></tr></table></figure></li>
+<li><p>仍然使用fastbin attack，只是少了global_max_fast的限制</p>
 </li>
 </ol>
 
