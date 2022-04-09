@@ -120,7 +120,7 @@
 </li>
 <li><p>fd单链表指向下一个chunk的fd位置，<strong>LIFO</strong></p>
 </li>
-<li><p>bk指向heap中第一个chunk的fd（malloc后不保留）</p>
+<li><p>bk指向<code>tcache_perthread_struct</code></p>
 </li>
 <li><p>在内存分配的 malloc 函数中有多处，会将内存块移入 tcache 中。</p>
 <p>（1）首先，申请的内存块符合 fastbin 大小时并且在 fastbin 内找到可用的空闲块时，会把该 fastbin 链上的其他内存块放入 tcache 中。</p>
@@ -129,8 +129,8 @@
 </li>
 <li><p>在 free 函数的最先处理部分，首先是检查释放块是否页对齐及前后堆块的释放情况，便优先放入 tcache 结构中。</p>
 </li>
-<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> </p>
-</li>
+<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> ，可以通过partial overwrite等操作控制这个结构体，里面放了不少好东西</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># define TCACHE_MAX_BINS		64</span><br><span class="line">typedef struct tcache_perthread_struct</span><br><span class="line">&#123;</span><br><span class="line">  uint16_t counts[TCACHE_MAX_BINS];//计数最大值为7</span><br><span class="line">  tcache_entry *entries[TCACHE_MAX_BINS];//从0x8偏移开始，每个0x10</span><br><span class="line">&#125; tcache_perthread_struct;</span><br><span class="line"></span><br><span class="line">typedef struct tcache_entry</span><br><span class="line">&#123;</span><br><span class="line">  struct tcache_entry *next;</span><br><span class="line">  /* This field exists to detect double frees.  */</span><br><span class="line">  struct tcache_perthread_struct *key;</span><br><span class="line">&#125; tcache_entry;</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h2 id="Largebin-attack"><a href="#Largebin-attack" class="headerlink" title="Largebin attack"></a>Largebin attack</h2><p>利用条件：</p>
 <ol>

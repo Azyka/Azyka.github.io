@@ -118,10 +118,20 @@
 <h2 id="UAF"><a href="#UAF" class="headerlink" title="UAF"></a>UAF</h2><p>经典的就是double free，在fastbin或者tcache实现</p>
 <p>流程如下</p>
 <ol>
-<li>doublefree在fastbin会检验第一个chunk是否相同，且受malloc受fastbin size限制;在tcache上则不受大小限制，不过如果tcache存在对df的检测，即指向tcache的key指针，只有通过对指针的修改才能实现df</li>
-<li>修改freed chunk的bins链，实现任意地址写</li>
-<li>找libc基址</li>
-<li>现在有两个方法，一是改malloc__hook为one_gadget然后malloc，这需要特殊条件，但胜在简单；二是改free__hook为system地址，然后free一个内容为/bin/sh的chunk即可</li>
+<li><p>doublefree在fastbin会检验第一个chunk是否相同，且受malloc受fastbin size限制;在tcache上则不受大小限制，不过如果tcache存在对df的检测，即指向tcache的key指针，只有通过对指针的修改才能实现df</p>
+</li>
+<li><p>修改freed chunk的bins链，实现任意地址写</p>
+</li>
+<li><p>找libc基址</p>
+</li>
+<li><p>现在有两个方法，</p>
+<ul>
+<li><p>一是改malloc__hook为one_gadget然后malloc，这需要特殊条件，但胜在简单（同时考虑使用<strong>realloc调整栈帧</strong>的方式满足one_gadget条件，即<code>__malloc_hook</code>先调用realloc_addr+n，而把one_gadget放在<code>__realloc_hook</code>）</p>
+</li>
+<li><p>二是改free__hook为system地址，然后free一个内容为/bin/sh的chunk即可</p>
+</li>
+</ul>
+</li>
 </ol>
 <h2 id="Unlink"><a href="#Unlink" class="headerlink" title="Unlink"></a>Unlink</h2><ol>
 <li>要求：需要获取存储chunk地址的数组地址</li>
