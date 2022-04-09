@@ -97,7 +97,7 @@
 <ul>
 <li>fd_nextsize指向前一个与当前chunk大小不同的第一个空闲块</li>
 <li>bk_nextsize指向后一个与当前chunk大小不同的第一个空闲块</li>
-<li>一般空闲的large chunk在fd的遍历顺序中，按照由大到小的顺序排列</li>
+<li>一般空闲的large chunk在<strong>fd的遍历顺序</strong>中，按照<strong>由大到小</strong>的顺序排列</li>
 </ul>
 </li>
 <li><p>被free的符合条件chunk会先出现在unsortedbin中，在malloc一个新chunk时，如果unsorted bin中存在符合条件chunk，挂入largebin</p>
@@ -113,11 +113,14 @@
 <li><p>选择完成后挂入largebin</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">victim-&gt;bk = bck;</span><br><span class="line">victim-&gt;fd = fwd;</span><br><span class="line">fwd-&gt;bk = victim;</span><br><span class="line">bck-&gt;fd = victim;</span><br></pre></td></tr></table></figure></li>
 </ol>
-<h2 id="Tcache"><a href="#Tcache" class="headerlink" title="Tcache"></a>Tcache</h2><p>(自2.26tcache出现后，经过了不少变化，有空再更新)</p>
-<ol>
-<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> 。</p>
+<h2 id="Tcache"><a href="#Tcache" class="headerlink" title="Tcache"></a>Tcache</h2><ol>
+<li><p>只存放smallbin范围内的chunk，size&lt;0x400</p>
 </li>
-<li><p>tcache中最多存储7个chunk</p>
+<li><p>tcache相同size中最多存储7个chunk</p>
+</li>
+<li><p>fd单链表指向下一个chunk的fd位置，<strong>LIFO</strong></p>
+</li>
+<li><p>bk指向heap中第一个chunk的fd（malloc后不保留）</p>
 </li>
 <li><p>在内存分配的 malloc 函数中有多处，会将内存块移入 tcache 中。</p>
 <p>（1）首先，申请的内存块符合 fastbin 大小时并且在 fastbin 内找到可用的空闲块时，会把该 fastbin 链上的其他内存块放入 tcache 中。</p>
@@ -125,6 +128,8 @@
 <p>（3）当在 unsorted bin 链上循环处理时，当找到大小合适的链时，并不直接返回，而是先放到 tcache 中，继续处理。</p>
 </li>
 <li><p>在 free 函数的最先处理部分，首先是检查释放块是否页对齐及前后堆块的释放情况，便优先放入 tcache 结构中。</p>
+</li>
+<li><p>一次 malloc 时，会先 malloc 一块内存用来存放 <code>tcache_perthread_struct</code> </p>
 </li>
 </ol>
 <h2 id="Largebin-attack"><a href="#Largebin-attack" class="headerlink" title="Largebin attack"></a>Largebin attack</h2><p>利用条件：</p>
@@ -143,6 +148,7 @@
 <li>修改global_max_fast</li>
 </ol>
 <h2 id="Tcache-attack"><a href="#Tcache-attack" class="headerlink" title="Tcache attack"></a>Tcache attack</h2><p>tcache中的不少技巧与fastbin是相似的，值得注意的是，在有tcache的情况下，要把tcache填满再进行另外的操作</p>
+<p>考虑到glibc版本更新在tcache防护也有变化，有空再更</p>
 
       </div>
     </div>
