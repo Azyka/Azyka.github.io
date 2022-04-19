@@ -155,9 +155,9 @@
 <p>fastbin attack的基本用法是获取一个已知地址的chunk然后修改内容</p>
 <p>此外还有关于global_max_fat的用法，需要结合unsortedbin attack或者largebin attack</p>
 <p>基本思想就是利用fastbin的单链表和字节错位的方式从已知地址上分配一个chunk出来改写</p>
-<h2 id="Unsorted-Bin-attack"><a href="#Unsorted-Bin-attack" class="headerlink" title="Unsorted Bin attack"></a>Unsorted Bin attack</h2><p>修改chunk的bk为&amp;target-0x10,fd为任意值都不影响</p>
+<h2 id="Unsorted-Bin-attack"><a href="#Unsorted-Bin-attack" class="headerlink" title="Unsorted Bin attack"></a>Unsorted Bin attack</h2><p>修改unsorted bin中chunk的bk为&amp;target-0x10,fd为任意值都不影响</p>
 <p>通过malloc出这个chunk实现任意地址写，但之后可能会导致无法使用unsortedbin</p>
-<p>修改后的值为unsorted_chunks(av)，是一个很大的不确定的数字</p>
+<p>修改后的值为unsorted_chunks(av)，即main_arena中的unsorted bin数组地址</p>
 <p>一种用法是把循环、条件的值改成一个很大的数，没什么可说的</p>
 <p>还有就是修改 heap 中的 global_max_fast 来使得更大的 chunk 可以被视为 fast bin，这样我们就可以去执行一些 fast bin attack 了。</p>
 <ol>
