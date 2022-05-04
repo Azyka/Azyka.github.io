@@ -203,87 +203,74 @@
 <p>calibrate_case()：校准一个新的测试用例，只在处理输入目录和发现新路径是执行</p>
 <p>init_forkserver()：用于初始化forkserver</p>
 <ol>
-<li><p>```<br>EXP_ST void init_forkserver(char** argv) {</p>
-<p>  static struct itimerval it;<br>  int st_pipe[2], ctl_pipe[2];<br>  int status;<br>  s32 rlen;</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   初始参数中st_pipe[2], ctl_pipe[2]分别为状态管道和控制管道</span><br><span class="line"></span><br><span class="line">2. ```</span><br><span class="line">   forksrv_pid = fork();//子进程为forkserver</span><br><span class="line">    </span><br><span class="line">   if (forksrv_pid &lt; 0) PFATAL(&quot;fork() failed&quot;);  //fork失败</span><br><span class="line">    </span><br><span class="line">   if (!forksrv_pid) &#123;   //forkserver执行</span><br><span class="line">    …………</span><br><span class="line">     setsid();  //让子进程完全独立运行</span><br></pre></td></tr></table></figure>
-
-<p>接着fork出子进程forkserver并使其脱离主进程</p>
-</li>
-<li><p>```</p>
-<pre><code>dup2(dev_null_fd, 1);
-dup2(dev_null_fd, 2);
-if (out_file) &#123;
-  dup2(dev_null_fd, 0);
-&#125; else &#123;
-  dup2(out_fd, 0);
-  close(out_fd);
-&#125;
-if (dup2(ctl_pipe[0], FORKSRV_FD) &lt; 0) PFATAL(&quot;dup2() failed&quot;);
-if (dup2(st_pipe[1], FORKSRV_FD + 1) &lt; 0) PFATAL(&quot;dup2() failed&quot;);
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   重定向forkserver的stdout、stderr到dev_null_fd</span><br><span class="line"></span><br><span class="line">   视情况重定向stdin</span><br><span class="line"></span><br><span class="line">   - 若定义了out_file，则把stdin重定向到dev_null_fd</span><br><span class="line">   - 否则关闭out_fd（间接关闭了stdin）</span><br><span class="line"></span><br><span class="line">   完成后对FORKSRV_FD和FORKSRV_FD + 1进行重定向</span><br><span class="line"></span><br><span class="line">   [linux之dup和dup2函数解析](https://blog.csdn.net/weixin_30764045/article/details/116936359)</span><br><span class="line"></span><br><span class="line">4. ```</span><br><span class="line">   	execv(target_path, argv);</span><br><span class="line">   </span><br><span class="line">       /* Use a distinctive bitmap signature to tell the parent about execv()</span><br><span class="line">          falling through. */</span><br><span class="line">   </span><br><span class="line">       *(u32*)trace_bits = EXEC_FAIL_SIG;</span><br><span class="line">       exit(0);</span><br></pre></td></tr></table></figure>
-
-<p>执行execv之前还有一系列参数设置，这里先略过，如果execv执行失败，那么主进程将通过trace_bits = EXEC_FAIL_SIG（位于bitmap）获得信息。</p>
-</li>
-<li><p>```<br>/* Close the unneeded endpoints. */<br>close(ctl_pipe[0]);<br>close(st_pipe[1]);</p>
-<p>fsrv_ctl_fd = ctl_pipe[1];<br>fsrv_st_fd  = st_pipe[0];<br>//等待返回消息<br>it.it_value.tv_sec = ((exec_tmout * FORK_WAIT_MULT) / 1000);<br>it.it_value.tv_usec = ((exec_tmout * FORK_WAIT_MULT) % 1000) * 1000;</p>
-<p>setitimer(ITIMER_REAL, &amp;it, NULL);<br>rlen = read(fsrv_st_fd, &amp;status, 4);</p>
-<p>it.it_value.tv_sec = 0;<br>it.it_value.tv_usec = 0;<br>setitimer(ITIMER_REAL, &amp;it, NULL);<br>if (rlen == 4) {<br>  OKF(“All right - fork server is up.”);<br>  return;<br>}</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   主进程的pipe为fsrv_ctl_fd = ctl_pipe[1]用于写;fsrv_st_fd  = st_pipe[0]用于读; 设置完成后等待forkserver的返回状态信号</span><br><span class="line"></span><br><span class="line">   - 如果长度正好为4，一切正常，直接返回</span><br><span class="line">   - 否则分类处理异常信号，打印消息并退出</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">## fuzzing策略</span><br><span class="line"></span><br><span class="line">各种初始设置完成后进入while循环，执行fuzzing主程序</span><br><span class="line"></span><br><span class="line">先来看一个比较重要的数据结构`queue_entry`的特点</span><br><span class="line"></span><br><span class="line">- 存储输入样本</span><br><span class="line">- 存储每次执行样本后的基本信息</span><br><span class="line">- 链表连接</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>struct queue_entry {</p>
-</li>
+<li> 初始参数中st_pipe[2], ctl_pipe[2]分别为状态管道和控制管道</li>
 </ol>
-<p>  u8* fname;                          /* File name for the test case      <em>/<br>  u32 len;                            /</em> Input length                     */</p>
-<p>  u8  cal_failed,                     /* Calibration failed?              <em>/<br>      trim_done,                      /</em> Trimmed?                         <em>/<br>      was_fuzzed,                     /</em> Had any fuzzing done yet?        <em>/<br>      passed_det,                     /</em> Deterministic stages passed?     <em>/<br>      has_new_cov,                    /</em> Triggers new coverage?           <em>/<br>      var_behavior,                   /</em> Variable behavior?               <em>/<br>      favored,                        /</em> Currently favored?               <em>/<br>      fs_redundant;                   /</em> Marked as redundant in the fs?   */</p>
-<p>  u32 bitmap_size,                    /* Number of bits set in bitmap     <em>/<br>      exec_cksum;                     /</em> Checksum of the execution trace  */</p>
-<p>  u64 exec_us,                        /* Execution time (us)              <em>/<br>      handicap,                       /</em> Number of queue cycles behind    <em>/<br>      depth;                          /</em> Path depth                       */</p>
-<p>  u8* trace_mini;                     /* Trace bytes, if kept             <em>/<br>  u32 tc_ref;                         /</em> Trace bytes ref count            */</p>
-<p>  struct queue_entry <em>next,           /</em> Next element, if any             */<br>                     <em>next_100;       /</em> 100 elements ahead               */</p>
-<p>};</p>
-<p>static struct queue_entry <em>queue,     /</em> Fuzzing queue (linked list)      */<br>                          <em>queue_cur, /</em> Current offset within the queue  */<br>                          <em>queue_top, /</em> Top of the list                  <em>/<br>                          <em>q_prev100; /</em> Previous 100 marker              <em>/<br>static struct queue_entry</em><br>  top_rated[MAP_SIZE];                /</em> Top entries for bitmap bytes     */</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">其中top_rated里面存放的是bitmap中每个位置当前最短路径</span><br><span class="line"></span><br><span class="line">### cull_queue()</span><br><span class="line"></span><br><span class="line">功能：每次执行fuzz_one之前，简化队列</span><br><span class="line"></span><br><span class="line">1. ```</span><br><span class="line">   if (dumb_mode || !score_changed) return;</span><br></pre></td></tr></table></figure>
+   <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">EXP_ST void init_forkserver(char** argv) &#123;</span><br><span class="line"></span><br><span class="line">  static struct itimerval it;</span><br><span class="line">  int st_pipe[2], ctl_pipe[2];</span><br><span class="line">  int status;</span><br><span class="line">  s32 rlen;</span><br></pre></td></tr></table></figure>
 
-<p>   如果是dumb_mode或者score_changed为0（即上一次fuzz没有产生更好的路径），直接返回</p>
 <ol start="2">
-<li><p>```<br>q = queue;<br>while (q) {<br>  q-&gt;favored = 0;<br>  q = q-&gt;next;<br>}</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   遍历队列，还原favored设置</span><br><span class="line"></span><br><span class="line">3. ```</span><br><span class="line">   for (i = 0; i &lt; MAP_SIZE; i++)</span><br><span class="line">     if (top_rated[i] &amp;&amp; (temp_v[i &gt;&gt; 3] &amp; (1 &lt;&lt; (i &amp; 7)))) &#123;</span><br><span class="line">       u32 j = MAP_SIZE &gt;&gt; 3;</span><br><span class="line">       while (j--) </span><br><span class="line">         if (top_rated[i]-&gt;trace_mini[j])</span><br><span class="line">           temp_v[j] &amp;= ~top_rated[i]-&gt;trace_mini[j];</span><br><span class="line">    </span><br><span class="line">       top_rated[i]-&gt;favored = 1;</span><br><span class="line">       queued_favored++;</span><br><span class="line">       if (!top_rated[i]-&gt;was_fuzzed) pending_favored++;</span><br><span class="line">     &#125;</span><br></pre></td></tr></table></figure>
+<li>接着fork出子进程forkserver并使其脱离主进程<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">forksrv_pid = fork();//子进程为forkserver</span><br><span class="line"> </span><br><span class="line">if (forksrv_pid &lt; 0) PFATAL(&quot;fork() failed&quot;);  //fork失败</span><br><span class="line"> </span><br><span class="line">if (!forksrv_pid) &#123;   //forkserver执行</span><br><span class="line"> …………</span><br><span class="line">  setsid();  //让子进程完全独立运行</span><br></pre></td></tr></table></figure></li>
+<li> 重定向forkserver的stdout、stderr到dev_null_fd</li>
+</ol>
+<p>   视情况重定向stdin</p>
+<ul>
+<li>若定义了out_file，则把stdin重定向到dev_null_fd</li>
+<li>否则关闭out_fd（间接关闭了stdin）</li>
+</ul>
+<p>   完成后对FORKSRV_FD和FORKSRV_FD + 1进行重定向</p>
+<p>   <a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_30764045/article/details/116936359">linux之dup和dup2函数解析</a></p>
+   <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">dup2(dev_null_fd, 1);</span><br><span class="line">dup2(dev_null_fd, 2);</span><br><span class="line">if (out_file) &#123;</span><br><span class="line">  dup2(dev_null_fd, 0);</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  dup2(out_fd, 0);</span><br><span class="line">  close(out_fd);</span><br><span class="line">&#125;</span><br><span class="line">if (dup2(ctl_pipe[0], FORKSRV_FD) &lt; 0) PFATAL(&quot;dup2() failed&quot;);</span><br><span class="line">if (dup2(st_pipe[1], FORKSRV_FD + 1) &lt; 0) PFATAL(&quot;dup2() failed&quot;);</span><br></pre></td></tr></table></figure>
 
-<p>循环取出处于top_rate中并且被temp_v标记的用例，每取出一个，清除temp_v中所有属于这个entry的bit，并设置它的favored位，令queued_favored，如果这个用例还没被fuzz过，令pending_favored++，标记优先执行</p>
-</li>
-<li><p>```<br>q = queue;<br>  while (q) {</p>
-<pre><code>mark_as_redundant(q, !q-&gt;favored);
-q = q-&gt;next;
-</code></pre>
-<p>  }</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   简化队列,标记冗余项</span><br><span class="line"></span><br><span class="line">### if (!queue_cur)</span><br><span class="line"></span><br><span class="line">功能：判断一次循环是否结束，是则初始化队列</span><br><span class="line"></span><br><span class="line">queue_cur指向当前队列中元素，为空说明遍历到结尾</span><br><span class="line"></span><br><span class="line">不为空则直接下一步</span><br><span class="line"></span><br><span class="line">1. ```</span><br><span class="line">    queue_cycle++;</span><br><span class="line">       current_entry     = 0;</span><br><span class="line">       cur_skipped_paths = 0;</span><br><span class="line">       queue_cur         = queue;</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li> 执行execv之前还有一系列参数设置，这里先略过，如果execv执行失败，那么主进程将通过trace_bits = EXEC_FAIL_SIG（位于bitmap）获得信息。</li>
+</ol>
+   <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">execv(target_path, argv);</span><br><span class="line">   </span><br><span class="line">   /* Use a distinctive bitmap signature to tell the parent about execv()</span><br><span class="line">      falling through. */</span><br><span class="line">   </span><br><span class="line">   *(u32*)trace_bits = EXEC_FAIL_SIG;</span><br><span class="line">   exit(0);</span><br></pre></td></tr></table></figure>
 
-<p>记录轮数、重置状态</p>
-</li>
-<li><p>```</p>
-<pre><code>while (seek_to) &#123;
-  current_entry++;
-  seek_to--;
-  queue_cur = queue_cur-&gt;next;
-&#125;
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   seek_to的值来源于find_start_position()，找到fuzzer重启后的开始位置</span><br><span class="line"></span><br><span class="line">   （只在fuzzer重启的第一个循环里用到）这里把queue_cur抬高到seek_to位置，恢复重启前的状态</span><br><span class="line"></span><br><span class="line">3. ```</span><br><span class="line">   show_stats();</span><br></pre></td></tr></table></figure>
+<ol start="5">
+<li><p>主进程的pipe为fsrv_ctl_fd = ctl_pipe[1]用于写;fsrv_st_fd  = st_pipe[0]用于读; 设置完成后等待forkserver的返回状态信号</p>
+<ul>
+<li>如果长度正好为4，一切正常，直接返回</li>
+<li>否则分类处理异常信号，打印消息并退出</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">/* Close the unneeded endpoints. */</span><br><span class="line">close(ctl_pipe[0]);</span><br><span class="line">close(st_pipe[1]);</span><br><span class="line"> </span><br><span class="line">fsrv_ctl_fd = ctl_pipe[1];</span><br><span class="line">fsrv_st_fd  = st_pipe[0];</span><br><span class="line">//等待返回消息</span><br><span class="line">it.it_value.tv_sec = ((exec_tmout * FORK_WAIT_MULT) / 1000);</span><br><span class="line">it.it_value.tv_usec = ((exec_tmout * FORK_WAIT_MULT) % 1000) * 1000;</span><br><span class="line"> </span><br><span class="line">setitimer(ITIMER_REAL, &amp;it, NULL);</span><br><span class="line">rlen = read(fsrv_st_fd, &amp;status, 4);</span><br><span class="line"></span><br><span class="line">it.it_value.tv_sec = 0;</span><br><span class="line">it.it_value.tv_usec = 0;</span><br><span class="line">setitimer(ITIMER_REAL, &amp;it, NULL);</span><br><span class="line">if (rlen == 4) &#123;</span><br><span class="line">  OKF(&quot;All right - fork server is up.&quot;);</span><br><span class="line">  return;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="fuzzing策略"><a href="#fuzzing策略" class="headerlink" title="fuzzing策略"></a>fuzzing策略</h2><p>各种初始设置完成后进入while循环，执行fuzzing主程序</p>
+<p>先来看一个比较重要的数据结构<code>queue_entry</code>的特点</p>
+<ul>
+<li>存储输入样本</li>
+<li>存储每次执行样本后的基本信息</li>
+<li>链表连接</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">struct queue_entry &#123;</span><br><span class="line"></span><br><span class="line">  u8* fname;                          /* File name for the test case      */</span><br><span class="line">  u32 len;                            /* Input length                     */</span><br><span class="line"></span><br><span class="line">  u8  cal_failed,                     /* Calibration failed?              */</span><br><span class="line">      trim_done,                      /* Trimmed?                         */</span><br><span class="line">      was_fuzzed,                     /* Had any fuzzing done yet?        */</span><br><span class="line">      passed_det,                     /* Deterministic stages passed?     */</span><br><span class="line">      has_new_cov,                    /* Triggers new coverage?           */</span><br><span class="line">      var_behavior,                   /* Variable behavior?               */</span><br><span class="line">      favored,                        /* Currently favored?               */</span><br><span class="line">      fs_redundant;                   /* Marked as redundant in the fs?   */</span><br><span class="line"></span><br><span class="line">  u32 bitmap_size,                    /* Number of bits set in bitmap     */</span><br><span class="line">      exec_cksum;                     /* Checksum of the execution trace  */</span><br><span class="line"></span><br><span class="line">  u64 exec_us,                        /* Execution time (us)              */</span><br><span class="line">      handicap,                       /* Number of queue cycles behind    */</span><br><span class="line">      depth;                          /* Path depth                       */</span><br><span class="line"></span><br><span class="line">  u8* trace_mini;                     /* Trace bytes, if kept             */</span><br><span class="line">  u32 tc_ref;                         /* Trace bytes ref count            */</span><br><span class="line"></span><br><span class="line">  struct queue_entry *next,           /* Next element, if any             */</span><br><span class="line">                     *next_100;       /* 100 elements ahead               */</span><br><span class="line"></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static struct queue_entry *queue,     /* Fuzzing queue (linked list)      */</span><br><span class="line">                          *queue_cur, /* Current offset within the queue  */</span><br><span class="line">                          *queue_top, /* Top of the list                  */</span><br><span class="line">                          *q_prev100; /* Previous 100 marker              */</span><br><span class="line">static struct queue_entry*</span><br><span class="line">  top_rated[MAP_SIZE];                /* Top entries for bitmap bytes     */</span><br></pre></td></tr></table></figure>
 
-<p>展示状态，就是命令行面板，每次状态更新或在其他状况下就会调用一次</p>
-</li>
-<li><p>```<br>if (not_on_tty) {</p>
-<pre><code>    ACTF(&quot;Entering queue cycle %llu.&quot;, queue_cycle);
-    fflush(stdout);
-  &#125;
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   非终端模式下输出循环数</span><br><span class="line"></span><br><span class="line">5. ```</span><br><span class="line">   if (queued_paths == prev_queued) &#123;</span><br><span class="line">   </span><br><span class="line">           if (use_splicing) cycles_wo_finds++; else use_splicing = 1;</span><br><span class="line">   </span><br><span class="line">         &#125; else cycles_wo_finds = 0;</span><br><span class="line">         prev_queued = queued_paths;</span><br></pre></td></tr></table></figure>
+<p>其中top_rated里面存放的是bitmap中每个位置当前最短路径</p>
+<h3 id="cull-queue"><a href="#cull-queue" class="headerlink" title="cull_queue()"></a>cull_queue()</h3><p>功能：每次执行fuzz_one之前，简化队列</p>
+<ol>
+<li>如果是dumb_mode或者score_changed为0（即上一次fuzz没有产生更好的路径），直接返回<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">if (dumb_mode || !score_changed) return;</span><br></pre></td></tr></table></figure></li>
+<li>遍历队列，还原favored设置<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">q = queue;</span><br><span class="line">while (q) &#123;</span><br><span class="line">  q-&gt;favored = 0;</span><br><span class="line">  q = q-&gt;next;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>循环取出处于top_rate中并且被temp_v标记的用例，每取出一个，清除temp_v中所有属于这个entry的bit，并设置它的favored位，令queued_favored，如果这个用例还没被fuzz过，令pending_favored++，标记优先执行<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">for (i = 0; i &lt; MAP_SIZE; i++)</span><br><span class="line">  if (top_rated[i] &amp;&amp; (temp_v[i &gt;&gt; 3] &amp; (1 &lt;&lt; (i &amp; 7)))) &#123;</span><br><span class="line">    u32 j = MAP_SIZE &gt;&gt; 3;</span><br><span class="line">    while (j--) </span><br><span class="line">      if (top_rated[i]-&gt;trace_mini[j])</span><br><span class="line">        temp_v[j] &amp;= ~top_rated[i]-&gt;trace_mini[j];</span><br><span class="line"> </span><br><span class="line">    top_rated[i]-&gt;favored = 1;</span><br><span class="line">    queued_favored++;</span><br><span class="line">    if (!top_rated[i]-&gt;was_fuzzed) pending_favored++;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></li>
+<li>简化队列,标记冗余项<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">q = queue;</span><br><span class="line">  while (q) &#123;</span><br><span class="line">    mark_as_redundant(q, !q-&gt;favored);</span><br><span class="line">    q = q-&gt;next;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="if-queue-cur"><a href="#if-queue-cur" class="headerlink" title="if (!queue_cur)"></a>if (!queue_cur)</h3><p>功能：判断一次循环是否结束，是则初始化队列</p>
+<p>queue_cur指向当前队列中元素，为空说明遍历到结尾</p>
+<p>不为空则直接下一步</p>
+<ol>
+<li><p>记录轮数、重置状态</p>
+ <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">queue_cycle++;</span><br><span class="line">   current_entry     = 0;</span><br><span class="line">  cur_skipped_paths = 0;</span><br><span class="line">   queue_cur         = queue;</span><br></pre></td></tr></table></figure>
 
-<p>queue_path不变，说明一整个循环未发现新路径，设置cycles_wo_finds+1或者use_splicing=1，他注释说会更换策略，但如果设置了-d参数，其实本来用的就是splicing，直接计数就行，cycles_wo_finds只是根据它的数量判断现在是否可以结束fuzzing，没别的影响</p>
 </li>
-<li><p>```<br>prev_queued = queued_paths;</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   设置prev_queued为上一次的结果</span><br><span class="line"></span><br><span class="line">7. ```</span><br><span class="line">   if (sync_id &amp;&amp; queue_cycle == 1 &amp;&amp; getenv(&quot;AFL_IMPORT_FIRST&quot;))</span><br><span class="line">           sync_fuzzers(use_argv);</span><br></pre></td></tr></table></figure>
-
-<p>如果设置了相关参数，sync_fuzzers()可以从其他fuzzer获取测试用例</p>
-</li>
+<li><p>seek_to的值来源于find_start_position()，找到fuzzer重启后的开始位置</p>
+<p>（只在fuzzer重启的第一个循环里用到）这里把queue_cur抬高到seek_to位置，恢复重启前的状态</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">while (seek_to) &#123;</span><br><span class="line">  current_entry++;</span><br><span class="line">  seek_to--;</span><br><span class="line">  queue_cur = queue_cur-&gt;next;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>展示状态，就是命令行面板，每次状态更新或在其他状况下就会调用一次</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">show_stats();</span><br></pre></td></tr></table></figure></li>
+<li><p>非终端模式下输出循环数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if (not_on_tty) &#123;</span><br><span class="line">        ACTF(&quot;Entering queue cycle %llu.&quot;, queue_cycle);</span><br><span class="line">        fflush(stdout);</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>queue_path不变，说明一整个循环未发现新路径，设置cycles_wo_finds+1或者use_splicing=1，他注释说会更换策略，但如果设置了-d参数，其实本来用的就是splicing，直接计数就行，cycles_wo_finds只是根据它的数量判断现在是否可以结束fuzzing，没别的影响</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if (queued_paths == prev_queued) &#123;</span><br><span class="line"></span><br><span class="line">        if (use_splicing) cycles_wo_finds++; else use_splicing = 1;</span><br><span class="line"></span><br><span class="line">      &#125; else cycles_wo_finds = 0;</span><br><span class="line">      prev_queued = queued_paths;</span><br></pre></td></tr></table></figure></li>
+<li><p>设置prev_queued为上一次的结果</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">prev_queued = queued_paths;</span><br></pre></td></tr></table></figure></li>
+<li><p>如果设置了相关参数，sync_fuzzers()可以从其他fuzzer获取测试用例</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">if (sync_id &amp;&amp; queue_cycle == 1 &amp;&amp; getenv(&quot;AFL_IMPORT_FIRST&quot;))</span><br><span class="line">        sync_fuzzers(use_argv);</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h3 id="关键执行函数fuzz-one"><a href="#关键执行函数fuzz-one" class="headerlink" title="关键执行函数fuzz_one()"></a><strong>关键执行函数fuzz_one()</strong></h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">skipped_fuzz = fuzz_one(use_argv);</span><br></pre></td></tr></table></figure>
 
@@ -291,23 +278,19 @@ q = q-&gt;next;
 <p>fuzz_one从当前队列中取一个用例执行</p>
 <p>fuzz成功返回0，跳过或bailed out返回1</p>
 <ol>
-<li><p>```<br>if (pending_favored){<br>   if ((queue_cur-&gt;was_fuzzed || !queue_cur-&gt;favored) &amp;&amp;</p>
-<pre><code>    UR(100) &lt; SKIP_TO_NEW_PROB) return 1;
-</code></pre>
-<p>}</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   进来先判断是否有*favored, non-fuzzed*用例需要执行</span><br><span class="line"></span><br><span class="line">   如果有，则有99%的概率跳过在它之前的用例</span><br><span class="line"></span><br><span class="line">2. ```</span><br><span class="line">   else if (!dumb_mode &amp;&amp; !queue_cur-&gt;favored &amp;&amp; queued_paths &gt; 10) &#123;</span><br><span class="line">       if (queue_cycle &gt; 1 &amp;&amp; !queue_cur-&gt;was_fuzzed) &#123;</span><br><span class="line">         if (UR(100) &lt; SKIP_NFAV_NEW_PROB) return 1;</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">         if (UR(100) &lt; SKIP_NFAV_OLD_PROB) return 1;</span><br><span class="line">       &#125;</span><br><span class="line">     &#125;</span><br></pre></td></tr></table></figure>
-
-<p>即使没有需要优先fuzz的用例，非dumb_mode下，当前用例不是favored，队列中超过10个元素的情况下</p>
+<li><p>进来先判断是否有<em>favored, non-fuzzed</em>用例需要执行</p>
+<p>如果有，则有99%的概率跳过在它之前的用例</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if (pending_favored)&#123;</span><br><span class="line">   if ((queue_cur-&gt;was_fuzzed || !queue_cur-&gt;favored) &amp;&amp;</span><br><span class="line">        UR(100) &lt; SKIP_TO_NEW_PROB) return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>即使没有需要优先fuzz的用例，非dumb_mode下，当前用例不是favored，队列中超过10个元素的情况下</p>
 <ul>
 <li>当前已运行超过2轮，未被fuzz过的，跳过概率75%（就是说第一二次循环就会跳过很大一部分，这是由于perform_dry_run里已经跑过一轮测试了）</li>
 <li>否则，跳过概率95%</li>
 </ul>
-</li>
-<li><p>```<br>orig_in = in_buf = mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   直接把当前测试用例映射到内存，提高效率</span><br><span class="line"></span><br><span class="line">4. ```</span><br><span class="line">   out_buf = ck_alloc_nozero(len);</span><br></pre></td></tr></table></figure>
-
-<p>out_buf不是从文件读，这里相当于直接用了malloc(len+1)，即使mmap也不能提高效率</p>
-</li>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">else if (!dumb_mode &amp;&amp; !queue_cur-&gt;favored &amp;&amp; queued_paths &gt; 10) &#123;</span><br><span class="line">    if (queue_cycle &gt; 1 &amp;&amp; !queue_cur-&gt;was_fuzzed) &#123;</span><br><span class="line">      if (UR(100) &lt; SKIP_NFAV_NEW_PROB) return 1;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      if (UR(100) &lt; SKIP_NFAV_OLD_PROB) return 1;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>直接把当前测试用例映射到内存，提高效率</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">orig_in = in_buf = mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);</span><br></pre></td></tr></table></figure></li>
+<li><p>out_buf不是从文件读，这里相当于直接用了malloc(len+1)，即使mmap也不能提高效率</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">out_buf = ck_alloc_nozero(len);</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h3 id="fuzz-one-CALIBRATION"><a href="#fuzz-one-CALIBRATION" class="headerlink" title="fuzz_one CALIBRATION"></a><strong>fuzz_one CALIBRATION</strong></h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">if (queue_cur-&gt;cal_failed)</span><br></pre></td></tr></table></figure>
 
@@ -343,16 +326,17 @@ q = q-&gt;next;
 <ol>
 <li><p>长度小于5直接返回</p>
 </li>
-<li><p>```<br>len_p2 = next_p2(q-&gt;len);<br>remove_len = MAX(len_p2 / TRIM_START_STEPS, TRIM_MIN_BYTES);</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   len_p2=2^x &gt; q-&gt;len</span><br><span class="line"></span><br><span class="line">   remove_len取len_p2/16与4的最大值</span><br><span class="line"></span><br><span class="line">3. ```</span><br><span class="line">   while (remove_len &gt;= MAX(len_p2 / TRIM_END_STEPS, TRIM_MIN_BYTES))</span><br></pre></td></tr></table></figure>
-
-<p>循环判断remove_len是否大于最小步长max(len_p2 /1024，4），满足则继续</p>
+<li><p>len_p2=2^x &gt; q-&gt;len</p>
+<p>remove_len取len_p2/16与4的最大值</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">len_p2 = next_p2(q-&gt;len);</span><br><span class="line">remove_len = MAX(len_p2 / TRIM_START_STEPS, TRIM_MIN_BYTES);</span><br></pre></td></tr></table></figure></li>
+<li><p>循环判断remove_len是否大于最小步长max(len_p2 /1024，4），满足则继续</p>
 <p>否则跳转到7</p>
-</li>
-<li><p>```<br>sprintf(tmp, “trim %s/%s”, DI(remove_len), DI(remove_len));</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   格式化remove_len到tmp</span><br><span class="line"></span><br><span class="line">5. ```</span><br><span class="line">   while (remove_pos &lt; q-&gt;len)&#123;</span><br><span class="line">   write_with_gap(in_buf, q-&gt;len, remove_pos, trim_avail);</span><br><span class="line">   fault = run_target(argv, exec_tmout);</span><br><span class="line">   cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);</span><br><span class="line">   if (cksum == q-&gt;exec_cksum)&#123;……&#125;</span><br><span class="line">   else remove_pos += remove_len</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">while (remove_len &gt;= MAX(len_p2 / TRIM_END_STEPS, TRIM_MIN_BYTES))</span><br></pre></td></tr></table></figure></li>
+<li><p>格式化remove_len到tmp</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sprintf(tmp, &quot;trim %s/%s&quot;, DI(remove_len), DI(remove_len));</span><br></pre></td></tr></table></figure></li>
+<li><p>内部循环，根据 remove_pos, trim_avail生成新case</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">while (remove_pos &lt; q-&gt;len)&#123;</span><br><span class="line">write_with_gap(in_buf, q-&gt;len, remove_pos, trim_avail);</span><br><span class="line">fault = run_target(argv, exec_tmout);</span><br><span class="line">cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);</span><br><span class="line">if (cksum == q-&gt;exec_cksum)&#123;……&#125;</span><br><span class="line">else remove_pos += remove_len</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>内部循环，根据 remove_pos, trim_avail生成新case</p>
 <p><code>static void write_with_gap(void* mem, u32 len, u32 skip_at, u32 skip_len)</code> </p>
 <p>功能：删除skip_at开始skip_len长度的内容，新内容存储于mem（此处为in_buf）</p>
 <p>运行一次新case，确认当前删除是否影响bitmap</p>
@@ -361,11 +345,10 @@ q = q-&gt;next;
 <li>否则remove_pos后移步长remove_len</li>
 </ul>
 </li>
-<li><p>```<br>remove_len &gt;&gt;= 1;</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   remove_len/2，回到3进行判断</span><br><span class="line"></span><br><span class="line">7. ```</span><br><span class="line">   if (needs_write)&#123;</span><br><span class="line">   ck_write(fd, in_buf, q-&gt;len, q-&gt;fname);</span><br><span class="line">   memcpy(trace_bits, clean_trace, MAP_SIZE);</span><br><span class="line">   update_bitmap_score(q);</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
-
-<p>needs_write为1（在5的if中设置）说明case需要更新,把in_buf内容写入文件，并更新bitmap信息</p>
-</li>
+<li><p>remove_len/2，回到3进行判断</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">remove_len &gt;&gt;= 1;</span><br></pre></td></tr></table></figure></li>
+<li><p>needs_write为1（在5的if中设置）说明case需要更新,把in_buf内容写入文件，并更新bitmap信息</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">if (needs_write)&#123;</span><br><span class="line">ck_write(fd, in_buf, q-&gt;len, q-&gt;fname);</span><br><span class="line">memcpy(trace_bits, clean_trace, MAP_SIZE);</span><br><span class="line">update_bitmap_score(q);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h3 id="fuzz-one-PERFORMANCE-SCORE"><a href="#fuzz-one-PERFORMANCE-SCORE" class="headerlink" title="fuzz_one PERFORMANCE SCORE"></a>fuzz_one PERFORMANCE SCORE</h3><ol>
 <li><p>调用<code>calculate_score(queue_cur)</code>计算当前queue_cur的score</p>
@@ -397,54 +380,70 @@ q = q-&gt;next;
 </li>
 <li><p>如果翻转后，<code>common_fuzz_stuff()</code>返回1，就直接跳过整个case，否则把这个bit再翻转回来</p>
 </li>
-<li><p>```<br>maybe_add_auto(a_collect, a_len);</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   检测token并添加</span><br><span class="line"></span><br><span class="line">   从注释上理解，如果在某一段连续bit上进行连续翻转后，都能让程序产生新的路径，就称连续翻转的这些bit为一个token</span><br><span class="line"></span><br><span class="line">`common_fuzz_stuff(char** argv, u8* out_buf, u32 len)`</span><br><span class="line"></span><br><span class="line">1. ```</span><br><span class="line">   write_to_testcase(out_buf, len);</span><br><span class="line">   fault = run_target(argv, exec_tmout);</span><br></pre></td></tr></table></figure>
+<li><p>检测token并添加</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maybe_add_auto(a_collect, a_len);</span><br></pre></td></tr></table></figure>
 
-<p>用新的case运行程序，获取fault</p>
+<p>从注释上理解token得概念：如果在某一段连续bit上进行连续翻转后，都能让程序产生新的路径，就称连续翻转的这些bit为一个token</p>
 </li>
-<li><p>```<br>if (fault == FAULT_TMOUT) {</p>
-<pre><code>if (subseq_tmouts++ &gt; TMOUT_LIMIT) &#123;
-  cur_skipped_paths++;
-  return 1;
-&#125;
-</code></pre>
-<p>  } else subseq_tmouts = 0;</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   - 如果FAULT_TMOUT并且subseq_tmouts（fuzz每个case时置零）未超出限制，返回1</span><br><span class="line"></span><br><span class="line">   - 若不是FAULT_TMOUT，subseq_tmouts=0</span><br><span class="line"></span><br><span class="line">3. 用户要求进程终止，返回1</span><br><span class="line"></span><br><span class="line">4. `save_if_interesting()`</span><br><span class="line"></span><br><span class="line">5. 返回0</span><br><span class="line"></span><br><span class="line">#### bitflip 2/1</span><br><span class="line"></span><br><span class="line">每次连续反转2个bit，步长为1bit</span><br><span class="line"></span><br><span class="line">#### bitflip 4/1</span><br><span class="line"></span><br><span class="line">每次连续反转2个bit，步长为1bit</span><br><span class="line"></span><br><span class="line">#### bitflip 8/8</span><br><span class="line"></span><br><span class="line">增加了effector map，每次连续反转8个bit，步长为8bit</span><br><span class="line"></span><br><span class="line">与之前找token的方式相似，如果byte翻转生成了新路径，就让这个byte在effector map中位置为1，否则为0。目的也是让后续变异参考，确认哪些位置是关键的参数，绕过无用的数据。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>eff_map[0] = 1;<br>if (EFF_APOS(len - 1) != 0) {<br> eff_map[EFF_APOS(len - 1)] = 1;<br> eff_cnt++;<br>}</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">初始只有第一个、最后一个位置为1</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>   if (cksum != queue_cur-&gt;exec_cksum) {</p>
-<pre><code> eff_map[EFF_APOS(stage_cur)] = 1;
- eff_cnt++;
-</code></pre>
-<p>   }</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">每次发现新路径设置1</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>if (eff_cnt != EFF_ALEN(len) &amp;&amp;<br>   eff_cnt * 100 / EFF_ALEN(len) &gt; EFF_MAX_PERC) {<br> memset(eff_map, 1, EFF_ALEN(len));<br> blocks_eff_select += EFF_ALEN(len);<br>}</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">发现有效位超过90%直接全为1</span><br><span class="line"></span><br><span class="line">注意，如果采用dumb mode或从fuzzer后续不会用到effector map的结果</span><br><span class="line"></span><br><span class="line">#### bitflip 16/8</span><br><span class="line"></span><br><span class="line">每次连续反转16个bit，步长为8bit</span><br><span class="line"></span><br><span class="line">#### bitflip 32/8</span><br><span class="line"></span><br><span class="line">每次连续反转32个bit，步长为8bit</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">### **ARITHMETIC INC/DEC 阶段**</span><br><span class="line"></span><br><span class="line">与位翻转不同，从 8bit 级别开始，而且每次进行的是加减运算操作</span><br><span class="line"></span><br><span class="line">#### arith 8/8</span><br><span class="line"></span><br><span class="line">每次对8bit进行加减运算，步长8bit</span><br><span class="line"></span><br><span class="line">1. ```</span><br><span class="line">   for (i = 0; i &lt; len; i++)&#123;</span><br><span class="line">   u8 orig = out_buf[i];</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+</ol>
+<p><code>common_fuzz_stuff(char** argv, u8* out_buf, u32 len)</code></p>
+<ol>
+<li><p>用新的case运行程序，获取fault</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">write_to_testcase(out_buf, len);</span><br><span class="line">fault = run_target(argv, exec_tmout);</span><br></pre></td></tr></table></figure></li>
+<li><p>检测fault值</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if (fault == FAULT_TMOUT) &#123;</span><br><span class="line">    if (subseq_tmouts++ &gt; TMOUT_LIMIT) &#123;</span><br><span class="line">      cur_skipped_paths++;</span><br><span class="line">      return 1;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; else subseq_tmouts = 0;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>如果FAULT_TMOUT并且subseq_tmouts（fuzz每个case时置零）未超出限制，返回1</p>
+</li>
+<li><p>若不是FAULT_TMOUT，subseq_tmouts=0</p>
+</li>
+</ul>
+</li>
+<li><p>用户要求进程终止，返回1</p>
+</li>
+<li><p><code>save_if_interesting()</code></p>
+</li>
+<li><p>返回0</p>
+</li>
+</ol>
+<h4 id="bitflip-2-1"><a href="#bitflip-2-1" class="headerlink" title="bitflip 2/1"></a>bitflip 2/1</h4><p>每次连续反转2个bit，步长为1bit</p>
+<h4 id="bitflip-4-1"><a href="#bitflip-4-1" class="headerlink" title="bitflip 4/1"></a>bitflip 4/1</h4><p>每次连续反转2个bit，步长为1bit</p>
+<h4 id="bitflip-8-8"><a href="#bitflip-8-8" class="headerlink" title="bitflip 8/8"></a>bitflip 8/8</h4><p>增加了effector map，每次连续反转8个bit，步长为8bit</p>
+<p>与之前找token的方式相似，如果byte翻转生成了新路径，就让这个byte在effector map中位置为1，否则为0。目的也是让后续变异参考，确认哪些位置是关键的参数，绕过无用的数据。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">eff_map[0] = 1;</span><br><span class="line">if (EFF_APOS(len - 1) != 0) &#123;</span><br><span class="line">  eff_map[EFF_APOS(len - 1)] = 1;</span><br><span class="line">  eff_cnt++;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>初始只有第一个、最后一个位置为1</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if (cksum != queue_cur-&gt;exec_cksum) &#123;</span><br><span class="line">  eff_map[EFF_APOS(stage_cur)] = 1;</span><br><span class="line">  eff_cnt++;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>每次发现新路径设置1</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">if (eff_cnt != EFF_ALEN(len) &amp;&amp;</span><br><span class="line">    eff_cnt * 100 / EFF_ALEN(len) &gt; EFF_MAX_PERC) &#123;</span><br><span class="line">  memset(eff_map, 1, EFF_ALEN(len));</span><br><span class="line">  blocks_eff_select += EFF_ALEN(len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>发现有效位超过90%直接全为1</p>
+<p>注意，如果采用dumb mode或从fuzzer后续不会用到effector map的结果</p>
+<h4 id="bitflip-16-8"><a href="#bitflip-16-8" class="headerlink" title="bitflip 16/8"></a>bitflip 16/8</h4><p>每次连续反转16个bit，步长为8bit</p>
+<h4 id="bitflip-32-8"><a href="#bitflip-32-8" class="headerlink" title="bitflip 32/8"></a>bitflip 32/8</h4><p>每次连续反转32个bit，步长为8bit</p>
+<h3 id="ARITHMETIC-INC-DEC-阶段"><a href="#ARITHMETIC-INC-DEC-阶段" class="headerlink" title="ARITHMETIC INC/DEC 阶段"></a><strong>ARITHMETIC INC/DEC 阶段</strong></h3><p>与位翻转不同，从 8bit 级别开始，而且每次进行的是加减运算操作</p>
+<h4 id="arith-8-8"><a href="#arith-8-8" class="headerlink" title="arith 8/8"></a>arith 8/8</h4><p>每次对8bit进行加减运算，步长8bit</p>
+<ol>
+<li><p>case遍历</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">for (i = 0; i &lt; len; i++)&#123;</span><br><span class="line">u8 orig = out_buf[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>orig为每次操作的位置</p>
 </li>
-<li><p>```<br>if (!eff_map[EFF_APOS(i)])</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   effector map为0直接跳过</span><br><span class="line"></span><br><span class="line">3. ```</span><br><span class="line">   for (j = 1; j &lt;= ARITH_MAX; j++)</span><br></pre></td></tr></table></figure>
-
-<p>循环进行前后异或，一共ARITH_MAX=35轮</p>
-</li>
-<li><p>```<br>u8 r = orig ^ (orig + j);</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   org与orig+j进行异或</span><br><span class="line"></span><br><span class="line">5. ```</span><br><span class="line">       if (!could_be_bitflip(r)) &#123;</span><br><span class="line">    </span><br><span class="line">         stage_cur_val = j;</span><br><span class="line">         out_buf[i] = orig + j;</span><br><span class="line">    </span><br><span class="line">         if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;</span><br><span class="line">         stage_cur++;</span><br><span class="line">    </span><br><span class="line">       &#125; else stage_max--;</span><br></pre></td></tr></table></figure>
-
-<p>要求每次产生的case不能与bitflip产生的相同，否则直接跳过</p>
+<li><p>effector map为0直接跳过</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">if (!eff_map[EFF_APOS(i)])</span><br></pre></td></tr></table></figure></li>
+<li><p>循环进行前后异或，一共ARITH_MAX=35轮</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">for (j = 1; j &lt;= ARITH_MAX; j++)</span><br></pre></td></tr></table></figure></li>
+<li><p>org与orig+j进行异或</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">u8 r = orig ^ (orig + j);</span><br></pre></td></tr></table></figure></li>
+<li><p>要求每次产生的case不能与bitflip产生的相同，否则直接跳过</p>
 <p>通过orig+j的方式生成新的case进行测试</p>
-</li>
-<li><p>```<br> r =  orig ^ (orig - j);</p>
-<pre><code>if (!could_be_bitflip(r)) &#123;
-  stage_cur_val = -j;
-  out_buf[i] = orig - j;
-  ……
-&#125; else stage_max--;
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   与上一步相似，使用org-j生成新的case进行测试</span><br><span class="line"></span><br><span class="line">7. ```</span><br><span class="line">   out_buf[i] = orig;</span><br></pre></td></tr></table></figure>
-
-<p>恢复原case</p>
-</li>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">if (!could_be_bitflip(r)) &#123;</span><br><span class="line">    </span><br><span class="line">  stage_cur_val = j;</span><br><span class="line">  out_buf[i] = orig + j;</span><br><span class="line">    </span><br><span class="line">  if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;</span><br><span class="line">  stage_cur++;</span><br><span class="line">    </span><br><span class="line">&#125; else stage_max--;</span><br></pre></td></tr></table></figure></li>
+<li><p>与上一步相似，使用org-j生成新的case进行测试</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">r =  orig ^ (orig - j);</span><br><span class="line">if (!could_be_bitflip(r)) &#123;</span><br><span class="line">  stage_cur_val = -j;</span><br><span class="line">  out_buf[i] = orig - j;</span><br><span class="line">  ……</span><br><span class="line">&#125; else stage_max--;</span><br></pre></td></tr></table></figure></li>
+<li><p>恢复原case</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">out_buf[i] = orig;</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h4 id="arith-16-8"><a href="#arith-16-8" class="headerlink" title="arith 16/8"></a>arith 16/8</h4><p>每次对16bit进行加减运算，步长8bit，对小端、大端加减法都进行测试</p>
 <h4 id="arith-32-8"><a href="#arith-32-8" class="headerlink" title="arith 32/8"></a>arith 32/8</h4><p>每次对32bit进行加减运算，步长8bit，对小端、大端加减法都进行测试</p>
@@ -454,28 +453,20 @@ q = q-&gt;next;
 <p><img src="/2022/05/04/AFL%E6%BA%90%E7%A0%81fuzzing%E6%B5%81%E7%A8%8B%E5%88%86%E6%9E%90/image-20220504094722901.png" alt="image-20220504094722901"></p>
 <h4 id="interest-8-8"><a href="#interest-8-8" class="headerlink" title="interest 8/8"></a>interest 8/8</h4><p>每次对8bit进行替换变异，步长8bit</p>
 <ol>
-<li><p>```<br>for (i = 0; i &lt; len; i++)</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   case遍历</span><br><span class="line"></span><br><span class="line">2. ```</span><br><span class="line">   if (!eff_map[EFF_APOS(i)])</span><br></pre></td></tr></table></figure>
-
-<p>eff_map检验不为0</p>
-</li>
-<li><p>```<br>for (j = 0; j &lt; sizeof(interesting_8); j++)</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   替换内容遍历</span><br><span class="line"></span><br><span class="line">4. ```</span><br><span class="line">   if (could_be_bitflip(orig ^ (u8)interesting_8[j]) ||</span><br><span class="line">             could_be_arith(orig, (u8)interesting_8[j], 1))</span><br></pre></td></tr></table></figure>
-
-<p>要求新case不能被bitfilp和arith生成过</p>
-</li>
-<li><p>```</p>
-<pre><code>stage_cur_val = interesting_8[j];
-out_buf[i] = interesting_8[j];
-if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
-out_buf[i] = orig;
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   朴实无华的执行并恢复原case</span><br><span class="line"></span><br><span class="line">#### interest 16/8</span><br><span class="line"></span><br><span class="line">每次对16bit进行替换变异，步长8bit</span><br><span class="line"></span><br><span class="line">#### interest 32/8</span><br><span class="line"></span><br><span class="line">每次对32bit进行替换变异，步长8bit</span><br><span class="line"></span><br><span class="line">### **DICTIONARY STUFF阶段**</span><br><span class="line"></span><br><span class="line">用户提供的字典里有token，用来替换要进行变异的文件内容，如果用户没提供就使用 bitflip 自动生成的 token</span><br><span class="line"></span><br><span class="line">#### user extras (over)</span><br><span class="line"></span><br><span class="line">以8bit为步长，标记起始位置开始，替换为token</span><br><span class="line"></span><br><span class="line">1. ```</span><br><span class="line">   for (i = 0; i &lt; len; i++)</span><br></pre></td></tr></table></figure>
-
-<p>每个字节都替换一遍</p>
-</li>
-<li><p>```<br>for (j = 0; j &lt; extras_cnt; j++)</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   遍历用户字典</span><br><span class="line"></span><br><span class="line">3. ```</span><br><span class="line">   if ((extras_cnt &gt; MAX_DET_EXTRAS &amp;&amp; UR(extras_cnt) &gt;= MAX_DET_EXTRAS) ||</span><br><span class="line">             extras[j].len &gt; len - i ||</span><br><span class="line">             !memcmp(extras[j].data, out_buf + i, extras[j].len) ||</span><br><span class="line">             !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len)))</span><br></pre></td></tr></table></figure>
+<li>case遍历<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">for (i = 0; i &lt; len; i++)</span><br></pre></td></tr></table></figure></li>
+<li>eff_map检验不为0<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">if (!eff_map[EFF_APOS(i)])</span><br></pre></td></tr></table></figure></li>
+<li>替换内容遍历<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">for (j = 0; j &lt; sizeof(interesting_8); j++)</span><br></pre></td></tr></table></figure></li>
+<li>要求新case不能被bitfilp和arith生成过<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">if (could_be_bitflip(orig ^ (u8)interesting_8[j]) ||</span><br><span class="line">          could_be_arith(orig, (u8)interesting_8[j], 1))</span><br></pre></td></tr></table></figure></li>
+<li>朴实无华的执行并恢复原case<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">stage_cur_val = interesting_8[j];</span><br><span class="line">out_buf[i] = interesting_8[j];</span><br><span class="line">if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;</span><br><span class="line">out_buf[i] = orig;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h4 id="interest-16-8"><a href="#interest-16-8" class="headerlink" title="interest 16/8"></a>interest 16/8</h4><p>每次对16bit进行替换变异，步长8bit</p>
+<h4 id="interest-32-8"><a href="#interest-32-8" class="headerlink" title="interest 32/8"></a>interest 32/8</h4><p>每次对32bit进行替换变异，步长8bit</p>
+<h3 id="DICTIONARY-STUFF阶段"><a href="#DICTIONARY-STUFF阶段" class="headerlink" title="DICTIONARY STUFF阶段"></a><strong>DICTIONARY STUFF阶段</strong></h3><p>用户提供的字典里有token，用来替换要进行变异的文件内容，如果用户没提供就使用 bitflip 自动生成的 token</p>
+<h4 id="user-extras-over"><a href="#user-extras-over" class="headerlink" title="user extras (over)"></a>user extras (over)</h4><p>以8bit为步长，标记起始位置开始，替换为token</p>
+<ol>
+<li>每个字节都替换一遍<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">for (i = 0; i &lt; len; i++)</span><br></pre></td></tr></table></figure></li>
+<li>遍历用户字典<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">for (j = 0; j &lt; extras_cnt; j++)</span><br></pre></td></tr></table></figure></li>
+<li>出现以下情况，直接下一条token<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if ((extras_cnt &gt; MAX_DET_EXTRAS &amp;&amp; UR(extras_cnt) &gt;= MAX_DET_EXTRAS) ||</span><br><span class="line">          extras[j].len &gt; len - i ||</span><br><span class="line">          !memcmp(extras[j].data, out_buf + i, extras[j].len) ||</span><br><span class="line">          !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len)))</span><br></pre></td></tr></table></figure>
 
 <ul>
 <li>字典token数&gt;200，随机生成一个小于字典token数，仍&gt;=200</li>
@@ -483,16 +474,11 @@ out_buf[i] = orig;
 <li>case中数据与token一致</li>
 <li>eff_map为0</li>
 </ul>
-<p>出现以上情况，直接下一条token</p>
 </li>
-<li><p>```<br> last_len = extras[j].len;</p>
-<pre><code>memcpy(out_buf + i, extras[j].data, last_len);
-if (common_fuzz_stuff(argv, out_buf, len))
-</code></pre>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">   替换，执行</span><br><span class="line"></span><br><span class="line">5. ```</span><br><span class="line">   memcpy(out_buf + i, in_buf + i, last_len);</span><br></pre></td></tr></table></figure>
+<li>替换，执行 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"> last_len = extras[j].len;</span><br><span class="line">memcpy(out_buf + i, extras[j].data, last_len);</span><br><span class="line"> if (common_fuzz_stuff(argv, out_buf, len))</span><br></pre></td></tr></table></figure>
 
-<p>所有token结束后恢复，跳回步骤1</p>
 </li>
+<li>所有token结束后恢复，跳回步骤1<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">memcpy(out_buf + i, in_buf + i, last_len);</span><br></pre></td></tr></table></figure></li>
 </ol>
 <h4 id="user-extras-insert"><a href="#user-extras-insert" class="headerlink" title="user extras (insert)"></a>user extras (insert)</h4><p>以8bit为步长，标记起始位置插入token</p>
 <h4 id="auto-extras-over"><a href="#auto-extras-over" class="headerlink" title="auto extras (over)"></a>auto extras (over)</h4><p>以8bit为步长，标记起始位置开始，替换为在bitflip阶段生成的token</p>
