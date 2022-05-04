@@ -85,12 +85,49 @@
     <div class="lx-entry padding">
       <div>
         <div class="note info">
-            <p>把afl基本流程走了一下，主要分析了afl-fuzz.c中有意思的函数（确实看不完），具体各个插桩原理之后再慢慢看</p><p>原本是想直接看afl++的，结果发现还是要过渡一下orz</p><p>特别感谢初号机师傅的阅读笔记</p>
+            <p>把afl基本流程走了一下，主要分析了afl-fuzz.c中有意思的函数（确实看不完），具体各个插桩原理之后再慢慢看</p><p>原本是想直接看afl++的，结果发现还是要过渡一下orz</p><p>特别感谢初号机师傅</p>
           </div>
 
 <span id="more"></span>
-
-<p>[TOC]</p>
+<blockquote>
+<p>目录</p>
+</blockquote>
+<ul>
+<li><a href="#source-code-fuzzing%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%B5%81%E7%A8%8B">source code fuzzing的基本流程</a></li>
+<li><a href="#instrument">Instrument</a><ul>
+<li><a href="#afl-gcc%E6%8F%92%E6%A1%A9%E5%88%86%E6%9E%90">afl-gcc插桩分析</a></li>
+</ul>
+</li>
+<li><a href="#fuzz-target">Fuzz target</a><ul>
+<li><a href="#%E5%88%9D%E5%A7%8B%E5%8C%96">初始化</a></li>
+<li><a href="#setup_shm">setup_shm()</a></li>
+<li><a href="#fork-server">Fork Server</a><ul>
+<li><a href="#%E5%85%B3%E9%94%AE%E6%89%A7%E8%A1%8C%E5%87%BD%E6%95%B0fuzz_one"><strong>关键执行函数fuzz_one()</strong></a></li>
+<li><a href="#fuzz_one-calibration"><strong>fuzz_one CALIBRATION</strong></a></li>
+<li><a href="#fuzz_one-trimming">fuzz_one TRIMMING</a></li>
+<li><a href="#fuzz_one-performance-score">fuzz_one PERFORMANCE SCORE</a></li>
+</ul>
+</li>
+<li><a href="#fuzz_one%E5%8F%98%E5%BC%82">fuzz_one变异</a><ul>
+<li><a href="#simple-bitflip-dictionary-construction%E9%98%B6%E6%AE%B5"><strong>SIMPLE BITFLIP (+dictionary construction)阶段</strong></a><ul>
+<li><a href="#bitflip-11">bitflip 1/1</a></li>
+<li><a href="#arith-168">arith 16/8</a></li>
+<li><a href="#arith-328">arith 32/8</a></li>
+</ul>
+</li>
+<li><a href="#interesting-values%E9%98%B6%E6%AE%B5"><strong>INTERESTING VALUES阶段</strong></a><ul>
+<li><a href="#interest-88">interest 8/8</a></li>
+<li><a href="#user-extras-insert">user extras (insert)</a></li>
+<li><a href="#auto-extras-over">auto extras (over)</a></li>
+</ul>
+</li>
+<li><a href="#random-havoc%E9%98%B6%E6%AE%B5"><strong>RANDOM HAVOC阶段</strong></a></li>
+<li><a href="#splicing%E9%98%B6%E6%AE%B5"><strong>SPLICING阶段</strong></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1 id="source-code-fuzzing的基本流程"><a href="#source-code-fuzzing的基本流程" class="headerlink" title="source code fuzzing的基本流程"></a>source code fuzzing的基本流程</h1><p><img src="/2022/05/04/AFL%E6%BA%90%E7%A0%81fuzzing%E6%B5%81%E7%A8%8B%E5%88%86%E6%9E%90/image-20220429194405206.png" alt="image-20220429194405206"></p>
 <p>主要内容是Instrument target和Fuzz本体</p>
 <h1 id="Instrument"><a href="#Instrument" class="headerlink" title="Instrument"></a>Instrument</h1><p>根据compiler的选择不同会影响后续fuzzing效率</p>
@@ -468,12 +505,9 @@ if (common_fuzz_stuff(argv, out_buf, len))
 <p>HAVOC和SPLICING是相结合的，拼接case后会回到havoc进行随机变异</p>
 <p>参考文章：</p>
 <ol>
-<li><p>AFL源码阅读笔记之gcc与fuzz部分<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-265936.htm">https://bbs.pediy.com/thread-265936.htm</a></p>
-</li>
-<li><p>AFL 源码分析<a target="_blank" rel="noopener" href="https://blog.csdn.net/song_lee/article/details/108244627">https://blog.csdn.net/song_lee/article/details/108244627</a></p>
-</li>
-<li><p>漏洞挖掘技术之 AFL 项目分析<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-249912.htm">https://bbs.pediy.com/thread-249912.htm</a></p>
-</li>
+<li>AFL源码阅读笔记之gcc与fuzz部分<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-265936.htm">https://bbs.pediy.com/thread-265936.htm</a></li>
+<li>AFL 源码分析<a target="_blank" rel="noopener" href="https://blog.csdn.net/song_lee/article/details/108244627">https://blog.csdn.net/song_lee/article/details/108244627</a></li>
+<li>漏洞挖掘技术之 AFL 项目分析<a target="_blank" rel="noopener" href="https://bbs.pediy.com/thread-249912.htm">https://bbs.pediy.com/thread-249912.htm</a></li>
 </ol>
 
       </div>

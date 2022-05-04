@@ -89,7 +89,11 @@
           </div>
 
 <span id="more"></span>
-
+<ul>
+<li><a href="#%E5%85%B3%E4%BA%8Efuzzing">关于Fuzzing</a></li>
+<li><a href="#quickstart">quickstart</a></li>
+<li><a href="#harness">harness</a></li>
+</ul>
 <h2 id="关于Fuzzing"><a href="#关于Fuzzing" class="headerlink" title="关于Fuzzing"></a>关于Fuzzing</h2><p>fuzzing，模糊测试。其与包括静态分析、动态分析、代码审计等传统漏洞检测方式的最大区别，就在于它可以大规模随机或半随机地生成测试数据，并以使程序crash为目标进行测试。这种方法被证明相当高效，可以敏锐地发掘代码中潜在地各种堆栈溢出等常见漏洞，也能用assert去调试非内存越界的问题（比如CVE-2014-3570 in OpenSSL）。</p>
 <p>同样，fuzzing也有一定的局限性</p>
 <ul>
