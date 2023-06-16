@@ -1,0 +1,852 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Azyka">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="接上次的Fuzzing101练习。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Fuzzing101笔记 6~10">
+<meta property="og:url" content="https://azyka.github.io/2022/09/08/Fuzzing101%E7%AC%94%E8%AE%B0-6-10/index.html">
+<meta property="og:site_name" content="Azyka&#39;s Blog">
+<meta property="og:description" content="接上次的Fuzzing101练习。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://azyka.github.io/image-20220728172051449.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220725173502736.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220728172405282.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220801090808164.png">
+<meta property="og:image" content="https://azyka.github.io/12.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220816152828217.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220816161649550.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220816161624548.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220816165418797.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220816164555722.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220829135520634.png">
+<meta property="article:published_time" content="2022-09-08T11:46:32.000Z">
+<meta property="article:modified_time" content="2023-06-16T05:13:52.638Z">
+<meta property="article:author" content="Azyka">
+<meta property="article:tag" content="Fuzz">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://azyka.github.io/image-20220728172051449.png">
+  
+  
+  
+  <title>Fuzzing101笔记 6~10 - Azyka&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"azyka.github.io","root":"/","version":"1.9.4","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Azyka Learning~</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/stars.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Fuzzing101笔记 6~10"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-09-08 11:46" pubdate>
+          2022年9月8日 中午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          11k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          89 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Fuzzing101笔记 6~10</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Exercise-6-GIMP"><a href="#Exercise-6-GIMP" class="headerlink" title="Exercise 6 - GIMP"></a>Exercise 6 - GIMP</h1><p><a target="_blank" rel="noopener" href="https://www.cvedetails.com/cve/CVE-2016-4994/"><strong>CVE-2016-4994</strong></a> in GIMP 2.8.16（Use-After-Free）</p>
+<h2 id="更改源码使用persistent-mode"><a href="#更改源码使用persistent-mode" class="headerlink" title="更改源码使用persistent mode"></a>更改源码使用persistent mode</h2><p>这两种方法中二选一即可（不能全选）</p>
+<ol>
+<li>app&#x2F;app.c  252行</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">if</span> (run_loop)&#123;<br>            <span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> __AFL_COMPILER</span><br>              <span class="hljs-keyword">while</span>(__AFL_LOOP(<span class="hljs-number">1000</span>))<br>              &#123;<br>                file_open_from_command_line (gimp, filenames[i], as_new);<br>              &#125;<br>              <span class="hljs-built_in">exit</span>(<span class="hljs-number">0</span>);<br>            <span class="hljs-meta">#<span class="hljs-keyword">else</span></span><br>              file_open_from_command_line (gimp, filenames[i], as_new);<br>            <span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br><br>          &#125;<br></code></pre></td></tr></table></figure>
+
+<ol>
+<li>app&#x2F;xcf&#x2F;xccf.c 280行</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> __AFL_COMPILER</span><br>  <span class="hljs-keyword">while</span>(__AFL_LOOP(<span class="hljs-number">10000</span>))&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span> </span><br><br>  info.fp = g_fopen (filename, <span class="hljs-string">&quot;rb&quot;</span>);<br>  <span class="hljs-keyword">if</span> (info.fp)……<br>  <span class="hljs-keyword">if</span> (success)……<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> __AFL_COMPILER</span><br>  &#125;<br>  <span class="hljs-built_in">exit</span>(<span class="hljs-number">0</span>);<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>  gimp_unset_busy (gimp);<br>  <span class="hljs-keyword">return</span> return_vals;<br></code></pre></td></tr></table></figure>
+
+
+
+<p>一开始我还是手动一行一行地改，后来发现有patch命令，下载patch文件后一步到位</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">patch</span> gimp-<span class="hljs-number">2</span>.<span class="hljs-number">8</span>.<span class="hljs-number">16</span>/app/xcf/xcf.c -i persistent.patch<br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="编译文件"><a href="#编译文件" class="headerlink" title="编译文件"></a>编译文件</h2><figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli">CC=afl-clang-fast CXX=afl-clang-fast++ PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$HOME/fuzz_target/fuzzing_gimp/gegl-0.2.0/ CFLAGS=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> CXXFLAGS=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> LDFLAGS=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> <span class="hljs-string">./configure</span> <span class="hljs-params">--disable-gtktest</span> <span class="hljs-params">--disable-glibtest</span> <span class="hljs-params">--disable-alsatest</span> <span class="hljs-params">--disable-nls</span> <span class="hljs-params">--without-libtiff</span> <span class="hljs-params">--without-libjpeg</span> <span class="hljs-params">--without-bzip2</span> <span class="hljs-params">--without-gs</span> <span class="hljs-params">--without-libpng</span> <span class="hljs-params">--without-libmng</span> <span class="hljs-params">--without-libexif</span> <span class="hljs-params">--without-aa</span> <span class="hljs-params">--without-libxpm</span> <span class="hljs-params">--without-webkit</span> <span class="hljs-params">--without-librsvg</span> <span class="hljs-params">--without-print</span> <span class="hljs-params">--without-poppler</span> <span class="hljs-params">--without-cairo-pdf</span> <span class="hljs-params">--without-gvfs</span> <span class="hljs-params">--without-libcurl</span> <span class="hljs-params">--without-wmf</span> <span class="hljs-params">--without-libjasper</span> <span class="hljs-params">--without-alsa</span> <span class="hljs-params">--without-gudev</span> <span class="hljs-params">--disable-python</span> <span class="hljs-params">--enable-gimp-console</span> <span class="hljs-params">--without-mac-twain</span> <span class="hljs-params">--without-script-fu</span> <span class="hljs-params">--without-gudev</span> <span class="hljs-params">--without-dbus</span> <span class="hljs-params">--disable-mp</span> <span class="hljs-params">--without-linux-input</span> <span class="hljs-params">--without-xvfb-run</span> <span class="hljs-params">--with-gif-compression=none</span> <span class="hljs-params">--without-xmc</span> <span class="hljs-params">--with-shm=none</span> <span class="hljs-params">--enable-debug</span>  <span class="hljs-params">--prefix=</span><span class="hljs-string">&quot;$HOME/fuzz_target/fuzzing_gimp/install&quot;</span><br><br>make -j$<span class="hljs-params">(nproc)</span><br>make install<br></code></pre></td></tr></table></figure>
+
+<p>安装过程中也出了一些奇怪的报错，如果你遇到的和我一样可以参考我的解决方法</p>
+<ol>
+<li><p>error while loading shared libraries：</p>
+<p>因为gegl库引发的报错，参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/wanxuexiang/article/details/84574660">解决方案</a></p>
+</li>
+<li><p>GLib-GObject-CRITICAL **: 15:19:52.668: g_param_spec_internal: assertion ‘is_valid_property_name (name)’ failed</p>
+<p>因为gimp-console-2.8插件引发的报错，推测可能是因为编译时剔除了很多的依赖库，导致这些插件无法运行，删除即可。</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">rm .<span class="hljs-regexp">/install/</span>lib<span class="hljs-regexp">/gimp/</span><span class="hljs-number">2.0</span><span class="hljs-regexp">/plug-ins/</span>*<br></code></pre></td></tr></table></figure></li>
+</ol>
+<p>测试运行</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">.<span class="hljs-regexp">/install/</span>bin<span class="hljs-regexp">/gimp-console-2.8 ./i</span>n/SampleInput.xcf<br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="fuzz"><a href="#fuzz" class="headerlink" title="fuzz"></a>fuzz</h2><figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">ASAN_OPTIONS</span>=detect_leaks=<span class="hljs-number">0</span>,abort_on_error=<span class="hljs-number">1</span>,symbolize=<span class="hljs-number">0</span> afl-fuzz -i ./in -o ./afl_out -D -t <span class="hljs-number">500</span> -- ./install/bin/gimp-console-<span class="hljs-number">2</span>.<span class="hljs-number">8</span> --verbose -d -f @@<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>程序中存在无限循环，需要设置<code>-t</code>参数timelimit提高效率，具体超时时长自己调整（我的破服务器上干脆设置成了500）</li>
+<li>打开<code>-D</code>deterministic mutations</li>
+</ul>
+<p><img src="/image-20220728172051449.png" srcset="/img/loading.gif" lazyload></p>
+<h2 id="调试"><a href="#调试" class="headerlink" title="调试"></a>调试</h2><p>因为开了ASAN，直接执行crash</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">.<span class="hljs-regexp">/install/</span>bin<span class="hljs-regexp">/gimp-console-2.8 --verbose -d -f ./</span>path<span class="hljs-regexp">/to/</span>crash<br></code></pre></td></tr></table></figure>
+
+<p>虽然跑出来的crash不少，但奇怪的是并没跑出预期的堆溢出，只有其他的几个小问题被找出来了。</p>
+<h3 id="crash1"><a href="#crash1" class="headerlink" title="crash1"></a>crash1</h3><p>最快出的一个crash</p>
+<p><img src="/image-20220725173502736.png" srcset="/img/loading.gif" lazyload></p>
+<ul>
+<li>报错信息： <code>AddressSanitizer: allocator is out of memory trying to allocate 0xab9e16000 bytes</code>，这显然一点也不像一个UAF会出的报错，这里是一个memory exhaustion bug（fuzzing101作者也在文中提到了）</li>
+</ul>
+<h3 id="crash2"><a href="#crash2" class="headerlink" title="crash2"></a>crash2</h3><p><img src="/image-20220728172405282.png" srcset="/img/loading.gif" lazyload></p>
+<ul>
+<li>报错信息：<code>AddressSanitizer: SEGV on unknown address 0x00000000008c</code>，segmentation violation访问空指针</li>
+</ul>
+<p>太怪了，结果是没出最重要的堆漏洞，反而是作者提到的次要问题给找出来了，难道AFL++版本可能会有影响？</p>
+<h1 id="Exercise-7-VLC-Media-Player"><a href="#Exercise-7-VLC-Media-Player" class="headerlink" title="Exercise 7 - VLC Media Player"></a>Exercise 7 - VLC Media Player</h1><p>看到那个运行时间，瞬间不想再跑一遍，直接上最新版，按照他的类似方法去跑</p>
+<h2 id="partial-instrumentation"><a href="#partial-instrumentation" class="headerlink" title="partial instrumentation"></a>partial instrumentation</h2><p>由于VLC根据文件头部的字节判断文件格式，使用不同模块对文件进行处理。如果我们不限制代码覆盖率范围，会导致AFL尝试变更文件头，进入处理其他文件的模块分支，并惊喜地发现代码覆盖率确实增长了一些。然而文件基本格式不符会导致AFL效率下滑，比如MKV文件样本在处理AVI文件的模块中，大量格式错误会让代码覆盖率增长缓慢。</p>
+<p>因此限制代码覆盖率的检测范围是必要的，通过设置AFL++提供的<code>AFL_LLVM_ALLOWLIST</code>参数为配置文件，可以只针对指定的文件名、函数名进行覆盖率检测。</p>
+<p>AFL++支持两种配置文件的编写方式，可以结合使用。</p>
+<ul>
+<li><p>文件名</p>
+<ul>
+<li>文件在项目中的完整相对路径</li>
+<li>单文件名，无路径（如果项目存在同名文件，可能会instrument其他文件）</li>
+</ul>
+</li>
+<li><p>函数名</p>
+<p><code>fun:</code> + 函数名，会自动忽略其中的空格</p>
+</li>
+</ul>
+<p>注意：使用文件名虽然方便很多，但它不是最可靠的方式，且存在失效的可能，如果用函数名指定就必定能配置到对应函数（手动找还是挺麻烦的）</p>
+<p>Fuzzing101作者使用的方式是两种方法的结合，那我也不确定单独一个方法能否正确instrument我需要的文件，所以我也采用这种方法添加了demux mp4 的相关内容。</p>
+<h2 id="环境配置"><a href="#环境配置" class="headerlink" title="环境配置"></a>环境配置</h2><p>一些必要的依赖库</p>
+<figure class="highlight q"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs q">apt-<span class="hljs-built_in">get</span> install libxcb-composite0-<span class="hljs-built_in">dev</span> libxcb-glx0-<span class="hljs-built_in">dev</span> libxcb-dri2<span class="hljs-number">-0</span>-<span class="hljs-built_in">dev</span> libxcb-xf86dri0-<span class="hljs-built_in">dev</span> libxcb-xinerama0-<span class="hljs-built_in">dev</span> libxcb-render-util0-<span class="hljs-built_in">dev</span><br>apt-<span class="hljs-built_in">get</span> install libxcb-xv0-<span class="hljs-built_in">dev</span><br>apt-<span class="hljs-built_in">get</span> install libxcb-randr0-<span class="hljs-built_in">dev</span><br>apt-<span class="hljs-built_in">get</span> install libasound2-<span class="hljs-built_in">dev</span><br>apt-<span class="hljs-built_in">get</span> install libvlc-<span class="hljs-built_in">dev</span><br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="获取样本文件"><a href="#获取样本文件" class="headerlink" title="获取样本文件"></a>获取样本文件</h2><p>这里要测试的是mp4相关的解析， 从<a target="_blank" rel="noopener" href="https://samples.ffmpeg.org/">ffmpeg samples repository</a>上找几个mp4样本（里面居然有片???），通过剪辑软件生成尽可能小的文件。我采用的方式是只截取视频的2帧，然后降低分辨率和图像质量，最终生成的视频文件大概能控制在5KB以内，勉强能接受。</p>
+<h2 id="测试运行"><a href="#测试运行" class="headerlink" title="测试运行"></a>测试运行</h2><p>先正常编译试试能否运行</p>
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli"><span class="hljs-string">./configure</span> <span class="hljs-params">--prefix=</span><span class="hljs-string">&quot;$HOME/fuzz_real/fuzzing_vlc/vlc-3.0.17.4/install&quot;</span> <span class="hljs-params">--disable-a52</span> <span class="hljs-params">--disable-lua</span> <span class="hljs-params">--disable-qt</span><br>make -j$<span class="hljs-params">(nproc)</span><br>make install<br><span class="hljs-string">./install/bin/vlc</span> <span class="hljs-params">--help</span><br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h2><figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><span class="hljs-attribute">CC</span>=afl-clang-fast <span class="hljs-attribute">CXX</span>=afl-clang-fast++ <span class="hljs-attribute">CFLAGS</span>=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> <span class="hljs-attribute">CXXFLAGS</span>=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> <span class="hljs-attribute">LDFLAGS</span>=<span class="hljs-string">&quot;-fsanitize=address&quot;</span> ./configure <span class="hljs-attribute">--prefix</span>=<span class="hljs-string">&quot;<span class="hljs-variable">$HOME</span>/fuzz_real/fuzzing_vlc/vlc-3.0.17.4/install&quot;</span> --disable-a52 --disable-lua --disable-qt<br><span class="hljs-attribute">AFL_LLVM_ALLOWLIST</span>=<span class="hljs-variable">$HOME</span>/fuzz_real/fuzzing_vlc/vlc-3.0.17.4/Partial_instrumentation <span class="hljs-attribute">ASAN_OPTIONS</span>=detect_leaks=0 make -j$(nproc) <span class="hljs-attribute">LDFLAGS</span>=<span class="hljs-string">&quot;-fsanitize=address&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p>这里要加ASAN_OPTIONS&#x3D;detect_leaks&#x3D;0，否则ASAN会给一个内存泄漏的警告，我也很想尝试patch一下，可惜调不出详细的报错路径。</p>
+<p>编译harness，这里我直接用了他的harness（毕竟fuzz方法也差不多），不过他的harness里少了一个free，记得加上（不加似乎也不影响效果，但加了更好）。</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs routeros">patch -p0 vlc-demux-run.c fuzzing_harness.patch<br>make vlc-demux-<span class="hljs-built_in">run</span> -j$(nproc) <span class="hljs-attribute">LDFLAGS</span>=<span class="hljs-string">&quot;-fsanitize=address&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p>这里fuzz的函数应该是vlc专门开放出来fuzz的一个接口，不然每次初始化vlc会浪费大量时间。但这个harness也仅局限与对demux模块的调试。</p>
+<h2 id="fuzz-1"><a href="#fuzz-1" class="headerlink" title="fuzz"></a>fuzz</h2><figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs awk">afl-fuzz -t <span class="hljs-number">300</span> -m none -i .<span class="hljs-regexp">/afl_in -o ./</span>afl_out -x mp4.dict -D -M master -- .<span class="hljs-regexp">/vlc-3.0.17.4/</span>test/vlc-demux-run @@  <br>afl-fuzz -t <span class="hljs-number">300</span> -m none -i .<span class="hljs-regexp">/afl_in -o ./</span>afl_out -S slave1 -- .<span class="hljs-regexp">/vlc-3.0.17.4/</span>test/vlc-demux-run @@ <br></code></pre></td></tr></table></figure>
+
+<p><img src="/image-20220801090808164.png" srcset="/img/loading.gif" lazyload></p>
+<p>结果在最新的VLC里跑出来一个小小的FPE，虽然只能在Debug模式下触发。</p>
+<h1 id="Exercise-8-Adobe-Reader"><a href="#Exercise-8-Adobe-Reader" class="headerlink" title="Exercise 8 - Adobe Reader"></a>Exercise 8 - Adobe Reader</h1><p>这玩意已经很久没有维护了，我这里测试的是9.5.5-1版本</p>
+<h2 id="安装afl-qemu-trace"><a href="#安装afl-qemu-trace" class="headerlink" title="安装afl-qemu-trace"></a>安装afl-qemu-trace</h2><p>首先要保证装的是i386的qemu，如果按照原来的方法安装，会导致后面的qemu mode无法运行，这个问题坑了我好几天。</p>
+<p>题目里的代码是有问题的，这里放上修改后的安装方法，我已经在git上向原作者发起了pull request，如果作者看到了应该会修复吧（大概）</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs awk">sudo apt install ninja-build libc6-dev-i386<br>cd ~<span class="hljs-regexp">/Downloads/</span>AFLplusplus<span class="hljs-regexp">/qemu_mode/</span><br>CPU_TARGET=i386 ./build_qemu_support.sh<br>sudo make install<br></code></pre></td></tr></table></figure>
+
+<p>正确安装的afl-qemu-trace</p>
+<p><img src="/12.png" srcset="/img/loading.gif" lazyload alt="安装效果"></p>
+<h2 id="获取样本文件-1"><a href="#获取样本文件-1" class="headerlink" title="获取样本文件"></a>获取样本文件</h2><p>这里我从<a target="_blank" rel="noopener" href="https://github.com/0ca/corpus_pdfs%E8%8E%B7%E5%8F%96%E6%A0%B7%E6%9C%AC%E6%96%87%E4%BB%B6%E3%80%82">https://github.com/0ca/corpus_pdfs获取样本文件。</a></p>
+<p>先筛选出大小小于2KB的文件，再用afl-cmin对文件进行压缩，最终生成样本文件。</p>
+<figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs gradle"><span class="hljs-keyword">find</span> corpus_pdfs<span class="hljs-regexp">/pdfs_all/</span> -<span class="hljs-keyword">size</span> -<span class="hljs-number">2</span>k  -exec cp <span class="hljs-string">&quot;&#123;&#125;&quot;</span> pdf_corpus/ \;<br>ACRO_INSTALL_DIR=<span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader ACRO_CONFIG=intellinux LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<span class="hljs-string">&#x27;/opt/Adobe/Reader9/Reader/intellinux/lib&#x27;</span> afl-cmin -Q -i .<span class="hljs-regexp">/afl_in/</span> -o .<span class="hljs-regexp">/afl_in1/</span> -t <span class="hljs-number">2000</span> -- <span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader<span class="hljs-regexp">/intellinux/</span>bin/acroread -toPostScript @@<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>afl-cmin是AFL++专门用来压缩样本的工具，调用方法和afl-fuzz基本一样，但是他只执行一轮。</li>
+</ul>
+<h2 id="分析程序"><a href="#分析程序" class="headerlink" title="分析程序"></a>分析程序</h2><p>使用valgrind和kcachegrind模块对程序进行分析</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs routeros">sudo apt-<span class="hljs-built_in">get</span> install valgrind<br>sudo apt-<span class="hljs-built_in">get</span> install kcachegrind<br><span class="hljs-attribute">ACRO_INSTALL_DIR</span>=/opt/Adobe/Reader9/Reader <span class="hljs-attribute">ACRO_CONFIG</span>=intellinux <span class="hljs-attribute">LD_LIBRARY_PATH</span>=<span class="hljs-variable">$LD_LIBRARY_PATH</span>:&#x27;/opt/Adobe/Reader9/Reader/intellinux/lib&#x27; valgrind <span class="hljs-attribute">--tool</span>=callgrind /opt/Adobe/Reader9/Reader/intellinux/bin/acroread -toPostScript [samplePDF]<br></code></pre></td></tr></table></figure>
+
+<p>直接打开生成的callgrind文件进行查看</p>
+<p><img src="/image-20220816152828217.png" srcset="/img/loading.gif" lazyload></p>
+<p>切换到call graph视图看得比较清楚，左侧比较重要的参数有</p>
+<ul>
+<li>incl.是inclusive的简写，表示的是该函数及其内容所有函数的内容所占用的CPU周期数百分比</li>
+<li>self，表示该函数中除去其他函数的内容所占用的周期数</li>
+<li>called，表示该函数在运行中的调用次数</li>
+</ul>
+<p>实际测试下来只有原文里选择的<code>0x085478AC</code>稳定性比较好，再往下的话稳定性都很差，不适合作为循环入口。</p>
+<h2 id="fuzz-2"><a href="#fuzz-2" class="headerlink" title="fuzz"></a>fuzz</h2><figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">AFL_QEMU_PERSISTENT_ADDR=<span class="hljs-number">0</span>x085478AC AFL_QEMU_PERSISTENT_GPR=<span class="hljs-number">1</span> ACRO_INSTALL_DIR=<span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader ACRO_CONFIG=intellinux LD_LIBRARY_PATH=<span class="hljs-variable">$LD_LIBRARY_PATH</span>:<span class="hljs-string">&#x27;/opt/Adobe/Reader9/Reader/intellinux/lib&#x27;</span> afl-fuzz -Q -i .<span class="hljs-regexp">/afl_in/</span> -o .<span class="hljs-regexp">/afl_out/</span> -t <span class="hljs-number">2000</span> -M master -- <span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader<span class="hljs-regexp">/intellinux/</span>bin/acroread -toPostScript @@<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>-Q：使用qemu-mode</li>
+<li>AFL_QEMU_PERSISTENT_ADDR：persistent mode</li>
+<li>AFL_QEMU_PERSISTENT_GPR：记录第一次persistent周期循环开始时的GPR数据，在往后循坏开始时直接重置</li>
+</ul>
+<p><img src="/image-20220816161649550.png" srcset="/img/loading.gif" lazyload></p>
+<h2 id="调试-1"><a href="#调试-1" class="headerlink" title="调试"></a>调试</h2><p>直接运行是不会报错的，使用afl-qemu-trace加上QASAN查看详细报错信息。</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">AFL_USE_QASAN=<span class="hljs-number">1</span> ACRO_INSTALL_DIR=<span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader ACRO_CONFIG=intellinux LD_LIBRARY_PATH=<span class="hljs-variable">$LD_LIBRARY_PATH</span>:<span class="hljs-string">&#x27;/opt/Adobe/Reader9/Reader/intellinux/lib&#x27;</span> <span class="hljs-regexp">/usr/</span>local<span class="hljs-regexp">/bin/</span>afl-qemu-trace -- <span class="hljs-regexp">/opt/</span>Adobe<span class="hljs-regexp">/Reader9/</span>Reader<span class="hljs-regexp">/intellinux/</span>bin/acroread -toPostScript <span class="hljs-number">1</span>.pdf<br></code></pre></td></tr></table></figure>
+
+<p><img src="/image-20220816161624548.png" srcset="/img/loading.gif" lazyload></p>
+<ul>
+<li>报错信息：<code>heap buffer overflow</code>，堆溢出，由于没有源码，作者也没有提怎么分析这个漏洞，所以我只能止步于此，有了解闭源的漏洞分析的师傅可以交流一下。</li>
+</ul>
+<h1 id="Exercise-9-7-Zip"><a href="#Exercise-9-7-Zip" class="headerlink" title="Exercise 9 - 7-Zip"></a>Exercise 9 - 7-Zip</h1><p>Windows下使用winafl进行fuzzing，这里我只能用自己的本机，所以也没有长时间开着的条件，测试能运行就算成功。</p>
+<h2 id="安装winAFL"><a href="#安装winAFL" class="headerlink" title="安装winAFL"></a>安装winAFL</h2><p>照着流程来基本没问题。</p>
+<p>先下一个DynamoRio，在Visual Studio2019的命令行下完成安装，只要用官方的安装器下个community版本，安装C++开发组件，其他都是默认即可。</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">mkdir</span> build32<br><span class="hljs-attribute">cd</span> build32<br><span class="hljs-attribute">cmake</span> -G<span class="hljs-string">&quot;Visual Studio 16 2019&quot;</span> -A Win32 .. -DDynamoRIO_DIR=F:\softwareAnalysis\Fuzzing\fuzzing_7zip\DynamoRIO-Windows-<span class="hljs-number">8</span>.<span class="hljs-number">0</span>.<span class="hljs-number">0</span>-<span class="hljs-number">1</span>\cmake<br><span class="hljs-attribute">cmake</span> --build . --config Release<br></code></pre></td></tr></table></figure>
+
+<p>安装正常的话会在<code>winafl\build32\bin\Release</code>下看到afl-fuzz.exe等文件。</p>
+<p><img src="/image-20220816165418797.png" srcset="/img/loading.gif" lazyload></p>
+<h2 id="测试运行-1"><a href="#测试运行-1" class="headerlink" title="测试运行"></a>测试运行</h2><p>用DynamoRIO测试能否运行fuzz进程</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">F</span>:\softwareAnalysis\Fuzzing\fuzzing_7zip\DynamoRIO-Windows-<span class="hljs-number">8</span>.<span class="hljs-number">0</span>.<span class="hljs-number">0</span>-<span class="hljs-number">1</span>\bin32\drrun.exe -c winafl.dll -debug -target_module <span class="hljs-number">7</span>z.exe -target_offset <span class="hljs-number">0</span>x02F3B3 -fuzz_iterations <span class="hljs-number">10</span> -nargs <span class="hljs-number">2</span> -- <span class="hljs-string">&quot;F:\softwareAnalysis\Fuzzing\fuzzing_7zip\7-Zip\7z.exe&quot;</span> l F:\softwareAnalysis\Fuzzing\fuzzing_7zip\afl_in\example.img<br></code></pre></td></tr></table></figure>
+
+<p>DynamoRio是一个全平台的动态插桩程序，winafl基于这个工具写了动态插桩winafl.c，编译后是winafl.dll，里面实现了覆盖率插桩、基于文件的共享内存、基于管道的状态传递等功能。</p>
+<h2 id="fuzz-3"><a href="#fuzz-3" class="headerlink" title="fuzz"></a>fuzz</h2><figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">afl</span>-fuzz.exe -i F:\softwareAnalysis\Fuzzing\fuzzing_7zip\afl_in -o F:\softwareAnalysis\Fuzzing\fuzzing_7zip\afl_out -t <span class="hljs-number">2000</span> -D F:\softwareAnalysis\Fuzzing\fuzzing_7zip\DynamoRIO-Windows-<span class="hljs-number">8</span>.<span class="hljs-number">0</span>.<span class="hljs-number">0</span>-<span class="hljs-number">1</span>\bin32 -- -coverage_module <span class="hljs-number">7</span>z.exe -coverage_module <span class="hljs-number">7</span>z.dll -target_module <span class="hljs-number">7</span>z.exe -target_offset <span class="hljs-number">0</span>x02F3B3 -nargs <span class="hljs-number">2</span> -- <span class="hljs-string">&quot;F:\softwareAnalysis\Fuzzing\fuzzing_7zip\7-Zip\7z.exe&quot;</span> e -y @@  <br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>-coverage_module：指定覆盖率引导包含的文件，和上面Execise7里的AFL_LLVM_ALLOWLIST有点像</li>
+<li>-target_offset：指定偏移，这里用了fuzzing101给的偏移量，需要减去基地址，而AFL++是不用的</li>
+<li>-nargs：用于指定测试文件的运行参数数量，似乎不包含最后的输入文件</li>
+</ul>
+<p><img src="/image-20220816164555722.png" srcset="/img/loading.gif" lazyload></p>
+<h1 id="Exercise-10-V8-engine"><a href="#Exercise-10-V8-engine" class="headerlink" title="Exercise 10 - V8 engine"></a>Exercise 10 - V8 engine</h1><p><a target="_blank" rel="noopener" href="https://nvd.nist.gov/vuln/detail/CVE-2019-5847"><strong>CVE-2019-5847</strong></a> in v8 7.5（infinite recursion）</p>
+<p> 做这个练习建议直接用<del>墙外的服务器</del>，我尝试用代理，结果浪费了很多时间</p>
+<h2 id="安装Fuzzilli"><a href="#安装Fuzzilli" class="headerlink" title="安装Fuzzilli"></a>安装Fuzzilli</h2><p>先配置依赖，我用的是ubuntu20.04，和fuzzing101需要的依赖不太一样，18.04可以参考原作者的安装方法</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">sudo</span> apt install clang libicu-dev libpython2.<span class="hljs-number">7</span>-dev libtinfo5 libncurses5 libpython2.<span class="hljs-number">7</span> libz3-dev<br><span class="hljs-attribute">wget</span> https://swift.org/builds/swift-<span class="hljs-number">5</span>.<span class="hljs-number">3</span>.<span class="hljs-number">3</span>-release/ubuntu2004/swift-<span class="hljs-number">5</span>.<span class="hljs-number">3</span>.<span class="hljs-number">3</span>-RELEASE/swift-<span class="hljs-number">5</span>.<span class="hljs-number">3</span>.<span class="hljs-number">3</span>-RELEASE-ubuntu20.<span class="hljs-number">04</span>.tar.gz<br><span class="hljs-attribute">tar</span> xzvf swift-<span class="hljs-number">5</span>.<span class="hljs-number">3</span>.<span class="hljs-number">3</span>-RELEASE-ubuntu20.<span class="hljs-number">04</span>.tar.gz<br><span class="hljs-attribute">sudo</span> mv swift-<span class="hljs-number">5</span>.<span class="hljs-number">3</span>.<span class="hljs-number">3</span>-RELEASE-ubuntu20.<span class="hljs-number">04</span> /usr/share/swift<br><span class="hljs-attribute">echo</span> <span class="hljs-string">&quot;export PATH=/usr/share/swift/usr/bin:$PATH&quot;</span> &gt;&gt; ~/.bashrc<br><span class="hljs-attribute">source</span> ~/.bashrc<br></code></pre></td></tr></table></figure>
+
+
+
+<p>安装fuzzilli，<a target="_blank" rel="noopener" href="https://github.com/googleprojectzero/fuzzilli/">fuzzili</a>是一个针对JS引擎的fuzz工具，使用编程语言是swift</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs awk">wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/googleprojectzero/</span>fuzzilli<span class="hljs-regexp">/archive/</span>refs<span class="hljs-regexp">/tags/</span>v0.<span class="hljs-number">9</span>.zip<br>unzip v0.<span class="hljs-number">9</span>.zip<br>cd fuzzilli-<span class="hljs-number">0.9</span>/<br>swift build -c release -Xlinker=<span class="hljs-string">&#x27;-lrt&#x27;</span><br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="安装V8-Engine"><a href="#安装V8-Engine" class="headerlink" title="安装V8 Engine"></a>安装V8 Engine</h2><p>先下载谷歌的代码管理工具depot_tools</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> <span class="hljs-variable">$HOME</span><br>git <span class="hljs-built_in">clone</span> https://chromium.googlesource.com/chromium/tools/depot_tools.git<br><span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;export PATH=`pwd`/depot_tools:<span class="hljs-variable">$PATH</span>&quot;</span> &gt;&gt; ~/.bashrc<br><span class="hljs-built_in">source</span>  ~/.bashrc<br></code></pre></td></tr></table></figure>
+
+
+
+<p>获取v8源码</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> <span class="hljs-variable">$HOME</span><br><span class="hljs-built_in">mkdir</span> Fuzzing_v8_75 &amp;&amp; <span class="hljs-built_in">cd</span> Fuzzing_v8_75<br>fetch v8<br><span class="hljs-built_in">cd</span> v8<br>git checkout 1ca088652d3aad04caceb648bcffef100bc4abc0<br>gclient <span class="hljs-built_in">sync</span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>gclient sync：该命令用于同步solution的各个仓库，由于v8代码中包含多个git仓库，使用checkout后需要更新其他仓库内容</li>
+</ul>
+<p>进行有<code>coverage instrumentation</code>的编译，这里建议先按照原文中编译一个release版本出来，测试环境是否正常</p>
+<p>作者少加了一个patch过程，这里补上</p>
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli"><span class="hljs-keyword">cd</span> $HOME/Fuzzing_v8_75/v8<br><span class="hljs-string">./build/install-build-deps.sh</span><br>cp <span class="hljs-string">../../fuzzilli-0.9/Targets/V8/v8.patch</span> <span class="hljs-string">./</span><br><span class="hljs-keyword">patch</span> -p1 &lt; v8.<span class="hljs-keyword">patch</span><br>gn gen out/fuzzbuild <span class="hljs-params">--args=</span>&#x27;is_debug=<span class="hljs-literal">false</span> dcheck_always_on=<span class="hljs-literal">true</span> v8_static_library=<span class="hljs-literal">true</span> v8_enable_slow_dchecks=<span class="hljs-literal">true</span> v8_enable_v8_checks=<span class="hljs-literal">true</span> v8_enable_verify_heap=<span class="hljs-literal">true</span> v8_enable_verify_csa=<span class="hljs-literal">true</span> v8_enable_verify_predictable=<span class="hljs-literal">true</span> sanitizer_coverage_flags=<span class="hljs-string">&quot;trace-pc-guard&quot;</span> target_cpu=<span class="hljs-string">&quot;x64&quot;</span>&#x27;<br>ninja -C <span class="hljs-string">./out/fuzzbuild</span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>gn gen：生成build文件</li>
+</ul>
+<p>同样可以用patch命令还原文件</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs armasm"><span class="hljs-symbol">patch</span>-RE -<span class="hljs-built_in">p1</span> &lt; <span class="hljs-built_in">v8</span>.patch<br></code></pre></td></tr></table></figure>
+
+
+
+<p>运行minibrowser时如果报错，需要先加载lib库</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs awk">sudo vi <span class="hljs-regexp">/etc/</span>ld.so.conf<br>在文件中添加webkit文件夹下lib路径<br>sudo <span class="hljs-regexp">/sbin/</span>ldconfig -v<br></code></pre></td></tr></table></figure>
+
+
+
+<h2 id="fuzz-4"><a href="#fuzz-4" class="headerlink" title="fuzz"></a>fuzz</h2><figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs routeros">swift <span class="hljs-built_in">run</span> <span class="hljs-attribute">-Xlinker</span>=<span class="hljs-string">&#x27;-lrt&#x27;</span> -c release FuzzilliCli <span class="hljs-attribute">--profile</span>=v8 <span class="hljs-attribute">--storagePath</span>=Targets/V8/out <span class="hljs-string">&#x27;/home/ubuntu/fuzz/fuzzing_v8/v8/out/fuzzbuild/d8&#x27;</span><br></code></pre></td></tr></table></figure>
+
+<p>如果这里不加存储路径，发现的crash样本会被丢弃，导致要重新跑</p>
+<p><img src="/image-20220829135520634.png" srcset="/img/loading.gif" lazyload></p>
+<h2 id="调试-2"><a href="#调试-2" class="headerlink" title="调试"></a>调试</h2><p>这里由于可能出现语法错误，即false positive，需要先用之前编译出来的正常Release版本运行crash，判断是否存在语法错误等问题，得到不会报错的脚本，再丢进gdb里运行</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs awk">gdb --args v8<span class="hljs-regexp">/out/</span>fuzzbuild<span class="hljs-regexp">/d8 fuzzilli-0.9/</span>Targets<span class="hljs-regexp">/V8/</span>out<span class="hljs-regexp">/crashes/</span>crash_1662073648445_9153_deterministic_4.js<br>crash_1662137004583_12367_deterministic_4.js<br></code></pre></td></tr></table></figure>
+
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Fuzz/">#Fuzz</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Fuzzing101笔记 6~10</div>
+      <div>https://azyka.github.io/2022/09/08/Fuzzing101笔记-6-10/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Azyka</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年9月8日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/09/23/Freedom%E5%A4%8D%E7%8E%B0%E7%AC%94%E8%AE%B0/" title="Freedom复现笔记">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Freedom复现笔记</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/08/02/Fuzzing101%E7%AC%94%E8%AE%B0-1-5/" title="Fuzzing101笔记 1~5">
+                        <span class="hidden-mobile">Fuzzing101笔记 1~5</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  <script>
+  Fluid.utils.createScript('https://lib.baomitu.com/mermaid/8.14.0/mermaid.min.js', function() {
+    mermaid.initialize({"theme":"default"});
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('mermaid' in window) {
+        mermaid.init();
+      }
+    });
+  });
+</script>
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

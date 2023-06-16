@@ -1,0 +1,799 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Azyka">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="阅读Javasrcipt引擎模糊测试论文后的总结和复现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Freedom复现笔记">
+<meta property="og:url" content="https://azyka.github.io/2022/09/23/Freedom%E5%A4%8D%E7%8E%B0%E7%AC%94%E8%AE%B0/index.html">
+<meta property="og:site_name" content="Azyka&#39;s Blog">
+<meta property="og:description" content="阅读Javasrcipt引擎模糊测试论文后的总结和复现。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://azyka.github.io/image-20220904230408905.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220828152635314.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220828153118312.png">
+<meta property="og:image" content="https://azyka.github.io/image-20220828153826150.png">
+<meta property="article:published_time" content="2022-09-23T21:48:31.000Z">
+<meta property="article:modified_time" content="2023-06-16T05:13:52.626Z">
+<meta property="article:author" content="Azyka">
+<meta property="article:tag" content="Fuzz">
+<meta property="article:tag" content="JS Engine">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://azyka.github.io/image-20220904230408905.png">
+  
+  
+  
+  <title>Freedom复现笔记 - Azyka&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"azyka.github.io","root":"/","version":"1.9.4","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Azyka Learning~</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/stars.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Freedom复现笔记"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-09-23 21:48" pubdate>
+          2022年9月23日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          47k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          394 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Freedom复现笔记</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><h2 id="DOM引擎漏洞"><a href="#DOM引擎漏洞" class="headerlink" title="DOM引擎漏洞"></a>DOM引擎漏洞</h2><p>本文尝试发现DOM引擎运行时的内存漏洞，漏洞会导致数据异常甚至RCE，其中可能包含完整的bug利用链</p>
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>已有fuzzer</p>
+<ul>
+<li>domfuzz</li>
+<li>Bf3</li>
+<li>cross_fuzz</li>
+<li>Dharma</li>
+<li>Avalanche</li>
+<li>Wadi</li>
+<li>Domato</li>
+</ul>
+<p>其中</p>
+<ul>
+<li><p>js动态fuzz（domfuzz\cross_fuzz）</p>
+<p>在运行时抓取页面上的可用元素，并调用随机的DOM API调用来操作它们，直到浏览器崩溃。这种动态模糊器现在很少采用，因为目标浏览器实例在长时间运行后会老化，从而导致不稳定的执行和不可复制的崩溃。</p>
+</li>
+<li><p>静态生成fuzz（以Domato为代表）</p>
+<p>根据描述规范的静态规则或语法从头开始生成语法正确的文档，并在有限的时间内用一个新的浏览器实例执行每个文档。但由于这些模糊器使用的规则和语法不完全是上下文敏感的，所以生成的文档会出现语义错误。</p>
+<p>黑盒测试，不利用现有测试用例和反馈信息</p>
+</li>
+</ul>
+<h1 id="传统模糊缺陷"><a href="#传统模糊缺陷" class="headerlink" title="传统模糊缺陷"></a>传统模糊缺陷</h1><h2 id="静态语法无效性"><a href="#静态语法无效性" class="headerlink" title="静态语法无效性"></a>静态语法无效性</h2><p>Domato使用上下文无关的语法描述HTML文档，这样很大程度上保证了语法正确性，但无法描述整个输入的每个数据依赖</p>
+<ul>
+<li><p>CSS selectors</p>
+<p>Domato考虑一定数量的HTML、SVG元素，一定数量的预定义类名，所有的HTML、SVG标签。但在Domato随机生成的文件中，元素的数量和可供参考的标签或类名在生成前是不确定的。这会导致引用错误，或有效元素未被利用。</p>
+</li>
+<li><p>CSS property</p>
+<ul>
+<li><p>property是javascript对象的一个属性，attribute是html页面中某个元素element的属性，html页面被浏览器渲染的过程中，每一个element都会创建一个相应的javascript对象，而所有的attribute会被装载到attributes这个property上，这个attributes是一个array。</p>
+</li>
+<li><p>SVG <clipPath> 和 SVG <filter>  两种元素的生成方式不符合标准。</p>
+</li>
+</ul>
+</li>
+<li><p>Attribute name values</p>
+<ul>
+<li>以前的一些DOM错误涉及到一个元素的特定attribute的动态更新，由于Domato不知道文档中每一个现有的元素都有哪些attribute，所以它不能实现这些。</li>
+<li>SVG的<animate>元素使用它的attributeName attribute来表示它的父元素的某个特定attribute要被动画化。由于不知道<animate>元素到底为哪个元素服务，Domato随机地将attributeName设置为任何可动画的SVG属性。例如，Domato可能会生成一个毫无价值的<animate>元素，试图改变一个<path>元素的不存在的x属性。</li>
+</ul>
+</li>
+<li><p>Attribute values</p>
+<ul>
+<li><p>与CSS选择器和属性值类似，一个特定Attribute的值（如form和usemap ）涉及到对一个特定类型的元素的引用（如<form>和<map>），这也没有被Domato正确描述。</p>
+</li>
+<li><p>一个属性值也可以对其他属性值有隐含的依赖性。关于<animate>元素，from属性的值是由同级属性attributeName的值决定的。如果不知道attributeName曾经产生的确切值，Domato的唯一选择是为from无状态地指定一些共同的属性值，这在大多数情况下不起作用。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h1 id="设计"><a href="#设计" class="headerlink" title="设计"></a>设计</h1><p>分布式DOM fuzzer，分为黑盒生成和覆盖率引导变异两部分（只开源了黑盒生成）</p>
+<ul>
+<li>黑盒生成<ul>
+<li>基于FD-IR随机生成HTML文档</li>
+<li>服务器只收集crash信息</li>
+</ul>
+</li>
+<li>覆盖率引导<ul>
+<li>服务器收集并维护测试用例队列、全局覆盖率表</li>
+<li>fuzz实例从队列中获取样本，并在此基础上变异或融合其他文档</li>
+<li>DOM引擎使用覆盖率instrument</li>
+</ul>
+</li>
+</ul>
+<h2 id="上下文敏感的文档表示"><a href="#上下文敏感的文档表示" class="headerlink" title="上下文敏感的文档表示"></a>上下文敏感的文档表示</h2><p>上下文被分为两类</p>
+<ul>
+<li>全局上下文：使用树结构，记录所有元素（包括tags&#x2F;attributes），同时记录所有可用token（class names, CSS counter names, CSS keyframe, names 等）用于，两者分开管理</li>
+<li>本地上下文：FD-IR为每个JavaScript函数描述了一个本地上下文，用来生成语义正确的DOM API调用。本地上下文不仅包含对全局上下文的引用，而且还在一个单独的地图保存本地每一个被API调用创建的DOM对象。与可以被一个函数中的任何API调用使用的全局元素不同，本地对象只有在被定义后才有效。因此，FD-IR也知道对象被删除的确切位置（即在哪一行），以支持各种API变异。</li>
+</ul>
+<h3 id="Value"><a href="#Value" class="headerlink" title="Value"></a>Value</h3><p>用于表示文件中可能出现的各类数据，如CSS selectors,<br>CSS properties, attributes and arguments and return values of API<br>calls</p>
+<p>一个Value的定义包含3种方法</p>
+<ul>
+<li>generate：随机生成方法（基于全局或本地上下文）</li>
+<li>mutate：随机变异方法</li>
+<li>lower：FD-IR Value转化为文档中的字符串</li>
+</ul>
+<h4 id="具体例子"><a href="#具体例子" class="headerlink" title="具体例子"></a>具体例子</h4><p><img src="/image-20220904230408905.png" srcset="/img/loading.gif" lazyload alt="IR类型示例"></p>
+<ul>
+<li>CSSProperty：复式Value，选择性地变异其内容</li>
+<li>CSSFilter：使用CSSFilterValue定义</li>
+<li>CSSFilterValue：basic Value（占大多数），不包含其他Value，直接通过生成代替变异</li>
+<li>ReturnValue：作为上下文被引用的Value，它的生成方法在本地上下文引入了新的对象，因此不能进行变异，否则会导致后续API调用出错</li>
+</ul>
+<h4 id="分类"><a href="#分类" class="headerlink" title="分类"></a>分类</h4><ul>
+<li>DOM tree：DOM树为多分支树，以 <body>为唯一根结点，DOM元素为结点，对每个元素节点，FD-IR记录元素类型、唯一id、子结点、属性列表，其中的每个属性都是Value instance</li>
+<li>CSS rules：FD-IR记录CSS规则列表，对每条规则，维护的选择器列表、CSS property列表都属于Value instance</li>
+<li>Event handlers：FD-IR记录事件处理器列表，其中body元素的onload事件处理被作为主事件处理器，文档中其他事件处理器的总数是预先定义的，在变异中不会增加。每个事件处理器都包含一组DOM API调用。</li>
+</ul>
+<h3 id="上下文敏感"><a href="#上下文敏感" class="headerlink" title="上下文敏感"></a>上下文敏感</h3><h4 id="文档生成"><a href="#文档生成" class="headerlink" title="文档生成"></a>文档生成</h4><p>从空白文档开始，其中只有一个<body>元素，一个空的主事件处理程序，以及一个空的事件处理程序列表。然后，FD-IR使用各种方法按照DOM树、CSS规则和事件处理程序的顺序构建文档内容，这涉及大量的上下文查询和更新。</p>
+<ul>
+<li>DOM tree generation（最优先）</li>
+</ul>
+<h1 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h1><p>环境：</p>
+<ul>
+<li>5台24核服务器</li>
+<li>Ubuntu 18.04 with AMD Ryzen 9 3900X</li>
+<li>64GB memory</li>
+<li>X virtual frame buffer (Xvfb)</li>
+</ul>
+<p>测试方式：</p>
+<ul>
+<li>量级：每个fuzzer运行100个实例，跑24小时</li>
+<li>target：ASan build of WebKitGTK 2.28.0</li>
+<li>coverage：使用instumented WebKit重新运行文档，获取DOM引擎代码覆盖率情况</li>
+</ul>
+<h2 id="FD-G-和以往fuzzer对比"><a href="#FD-G-和以往fuzzer对比" class="headerlink" title="FD(G)和以往fuzzer对比"></a>FD(G)和以往fuzzer对比</h2><h3 id="Dharma"><a href="#Dharma" class="headerlink" title="Dharma"></a>Dharma</h3><p><img src="/image-20220828152635314.png" srcset="/img/loading.gif" lazyload alt="Dharma效果"></p>
+<h3 id="Domato"><a href="#Domato" class="headerlink" title="Domato"></a>Domato</h3><p><img src="/image-20220828153118312.png" srcset="/img/loading.gif" lazyload alt="Domato效果"></p>
+<h2 id="FD-G-对比FD-M"><a href="#FD-G-对比FD-M" class="headerlink" title="FD(G)对比FD(M)"></a>FD(G)对比FD(M)</h2><p>M虽然能够比G发现部分新crash，但会错失更多的crash。</p>
+<p>因为FDM尝试扩张代码覆盖率的变异没有一个具体方向，因此反而不能触发对应的漏洞。虽然FDG盲目生成的文档在时间过程中永远无法彻底探索浏览器的代码，但至少FDG在每次执行时都会持续测试某些深层代码路径，这是因为生成的文档具有较大的规模和丰富的语义。相比之下，代码覆盖使得从空白文档开始的FDM在众多浅层代码路径中徘徊，并且由于DOM引擎的极端复杂性，在很长一段时间内无法向下移动。</p>
+<p>总的来说，黑盒生成并不全面，但对于在合理的时间内发现DOM引擎中大量的bug来说，仍然是值得推荐的。同时，覆盖率驱动的突变也被认为是一种不可替代的方法，特别是对于发现那些在严格条件下发生的错误。基于突变的模糊处理的另一个优点是，最小化其崩溃的文件尺寸要小得多，耗时也少。我们也相信，如果有更多的计算资源和更好的种子输入，它的性能可以在很大程度上得到改善。</p>
+<p><img src="/image-20220828153826150.png" srcset="/img/loading.gif" lazyload alt="Freedom效果"></p>
+<h1 id="DOM-x2F-JS-FUZZ领域issue"><a href="#DOM-x2F-JS-FUZZ领域issue" class="headerlink" title="DOM&#x2F;JS FUZZ领域issue"></a>DOM&#x2F;JS FUZZ领域issue</h1><ul>
+<li>如何生成语义正确的测试用例——Freedom\SoFi\favocado<ul>
+<li>Freedom：IR中间语言，按约束生成</li>
+<li>SoFi：JavaScript Dynamic Reflection，动态修复语义错误</li>
+<li>favocado：收集语义信息，将其分为等类；解析Interface Definition Language (IDL)</li>
+</ul>
+</li>
+<li>如何高效发掘API之间深层次的关系——Montage<ul>
+<li>Montage：调用API，观察API之间是否存在内存交互</li>
+</ul>
+</li>
+</ul>
+<h1 id="Freedom复现"><a href="#Freedom复现" class="headerlink" title="Freedom复现"></a>Freedom复现</h1><h2 id="运行环境"><a href="#运行环境" class="headerlink" title="运行环境"></a>运行环境</h2><ul>
+<li>使用xvfb-run实现无图形界面的浏览器运行</li>
+</ul>
+<h2 id="crash检测脚本"><a href="#crash检测脚本" class="headerlink" title="crash检测脚本"></a>crash检测脚本</h2><ol>
+<li><p>执行FD（G）的文件生成</p>
+</li>
+<li><p>处理生成的文件，添加自动退出js命令</p>
+</li>
+<li><p>对执行返回结果进行检测</p>
+<ul>
+<li><p>返回值为1，说明文件被全部执行，无crash</p>
+</li>
+<li><p>timeout说明文件在执行中crash，进一步处理</p>
+</li>
+<li><p>排除crash中的语法错误</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">==<span class="hljs-number">4594</span>==AddressSanitizer CHECK failed: ..<span class="hljs-regexp">/../</span>..<span class="hljs-regexp">/../</span>src<span class="hljs-regexp">/libsanitizer/</span>asan/asan_poisoning.cc:<span class="hljs-number">37</span> <br></code></pre></td></tr></table></figure>
+
+<p>此处的check fail指代码在检查阶段中发现错误导致的直接崩溃</p>
+<p>由于webkit在release版本同样存在检查，所以这样的报错并不能用于release版本</p>
+</li>
+</ul>
+</li>
+<li><p>保存有效结果</p>
+<p>2个进程运行一天，得到总计5个有效crash样本</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs apache"><span class="hljs-attribute">uaf</span>:<br><span class="hljs-attribute">crashes</span>/<span class="hljs-number">1</span>-<span class="hljs-number">166375168412</span>.html<br><span class="hljs-attribute">crashes</span>/<span class="hljs-number">1</span>-<span class="hljs-number">166378535004</span>.html<br><span class="hljs-attribute">crashes</span>/<span class="hljs-number">1</span>-<span class="hljs-number">166379051542</span>.html<br><span class="hljs-attribute">crashes</span>/<span class="hljs-number">1</span>-<span class="hljs-number">166379150950</span>.html<br><span class="hljs-attribute">SIGV</span>:<br><span class="hljs-attribute">crashes</span>/<span class="hljs-number">1</span>-<span class="hljs-number">166377133300</span>.html<br></code></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="样本分析"><a href="#样本分析" class="headerlink" title="样本分析"></a>样本分析</h2><p>暂时看不懂，需要结合代码具体分析。</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs awk">xvfb-run -a ..<span class="hljs-regexp">/webkitgtk-2.28.0/</span>bin<span class="hljs-regexp">/MiniBrowser $FUZZDIR/</span><span class="hljs-variable">$i</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight dns"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br></pre></td><td class="code"><pre><code class="hljs dns">WARNING: ASAN interferes with JSC signal handlers<span class="hljs-comment">; useWebAssemblyFastMemory will be disabled.</span><br>WARNING: ASAN interferes with JSC signal handlers<span class="hljs-comment">; useWebAssemblyFastMemory will be disabled.</span><br>WARNING: ASAN interferes with JSC signal handlers<span class="hljs-comment">; useWebAssemblyFastMemory will be disabled.</span><br>=================================================================<br>==<span class="hljs-number">12747</span>==ERROR: AddressSanitizer: heap-use-after-free on address <span class="hljs-number">0</span>x60<span class="hljs-number">70000b4a48</span> at pc <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b28</span> bp <span class="hljs-number">0</span>x7ffc5fa5d6a0 sp <span class="hljs-number">0</span>x7ffc5fa5d690<br>READ of size <span class="hljs-number">4</span> at <span class="hljs-number">0</span>x60<span class="hljs-number">70000b4a48</span> thread T0<br>    #<span class="hljs-number">0</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>tableSizeMask() const DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">585</span><br>    #<span class="hljs-number">1</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;* WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>inlineLookup&lt;WT<span class="hljs-number">F::</span>IdentityHashTranslator&lt;WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">675</span><br>    #<span class="hljs-number">2</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;* WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>lookup&lt;WT<span class="hljs-number">F::</span>IdentityHashTranslator&lt;WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">661</span><br>    #<span class="hljs-number">3</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>HashTableConstIterator&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt; WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>find&lt;WT<span class="hljs-number">F::</span>IdentityHashTranslator&lt;WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) const DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">1084</span><br>    #<span class="hljs-number">4</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>find(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) const DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">476</span><br>    #<span class="hljs-number">5</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>HashSet&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>find(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) const DerivedSources/ForwardingHeaders/wtf/HashSet.h:<span class="hljs-number">209</span><br>    #<span class="hljs-number">6</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WT<span class="hljs-number">F::</span>HashSet&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>remove(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;) DerivedSources/ForwardingHeaders/wtf/HashSet.h:<span class="hljs-number">286</span><br>    #<span class="hljs-number">7</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in bool WT<span class="hljs-number">F::</span>WeakHashSet&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;<span class="hljs-number">::</span>remove&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;(WebCor<span class="hljs-number">e::</span>DocumentTimeline const&amp;) DerivedSources/ForwardingHeaders/wtf/WeakHashSet.h:<span class="hljs-number">112</span><br>    #<span class="hljs-number">8</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05950b27</span> in WebCor<span class="hljs-number">e::</span>Document<span class="hljs-number">::</span>removeTimeline(WebCor<span class="hljs-number">e::</span>DocumentTimeline&amp;) Source/WebCore/dom/Document.cpp:<span class="hljs-number">8064</span><br>    #<span class="hljs-number">9</span> <span class="hljs-number">0</span>x7fbd04fb36ce in WebCor<span class="hljs-number">e::</span>DocumentTimeline::~DocumentTimeline() Source/WebCore/animation/DocumentTimeline.cpp:<span class="hljs-number">80</span><br>    #<span class="hljs-number">10</span> <span class="hljs-number">0</span>x7fbd04fb3dd0 in WebCor<span class="hljs-number">e::</span>DocumentTimeline::~DocumentTimeline() Source/WebCore/animation/DocumentTimeline.cpp:<span class="hljs-number">81</span><br>    #<span class="hljs-number">11</span> <span class="hljs-number">0</span>x7fbd0598f70f in st<span class="hljs-number">d::</span>default_delete&lt;WebCor<span class="hljs-number">e::</span>AnimationTimeline&gt;<span class="hljs-number">::</span>operator()(WebCor<span class="hljs-number">e::</span>AnimationTimeline*) const /usr/include/c++/<span class="hljs-number">7</span>/bits/unique_ptr.h:<span class="hljs-number">78</span><br>    #<span class="hljs-number">12</span> <span class="hljs-number">0</span>x7fbd0598f70f in WT<span class="hljs-number">F::</span>RefCounted&lt;WebCor<span class="hljs-number">e::</span>AnimationTimeline, st<span class="hljs-number">d::</span>default_delete&lt;WebCor<span class="hljs-number">e::</span>AnimationTimeline&gt; &gt;<span class="hljs-number">::</span>deref() const DerivedSources/ForwardingHeaders/wtf/RefCounted.h:<span class="hljs-number">190</span><br>    #<span class="hljs-number">13</span> <span class="hljs-number">0</span>x7fbd0598f70f in void WT<span class="hljs-number">F::</span>derefIfNotNull&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;(WebCor<span class="hljs-number">e::</span>DocumentTimeline*) DerivedSources/ForwardingHeaders/wtf/RefPtr.h:<span class="hljs-number">44</span><br>    #<span class="hljs-number">14</span> <span class="hljs-number">0</span>x7fbd0598f70f in WT<span class="hljs-number">F::</span>RefPtr&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt; &gt;::~RefPtr() DerivedSources/ForwardingHeaders/wtf/RefPtr.h:<span class="hljs-number">70</span><br>    #<span class="hljs-number">15</span> <span class="hljs-number">0</span>x7fbd0598f70f in WebCor<span class="hljs-number">e::</span>Document::~Document() Source/WebCore/dom/Document.cpp:<span class="hljs-number">628</span><br>    #<span class="hljs-number">16</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">060f6574</span> in WebCor<span class="hljs-number">e::</span>HTMLDocument::~HTMLDocument() Source/WebCore/html/HTMLDocument.h:<span class="hljs-number">29</span><br>    #<span class="hljs-number">17</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">060f6660</span> in WebCor<span class="hljs-number">e::</span>HTMLDocument::~HTMLDocument() Source/WebCore/html/HTMLDocument.h:<span class="hljs-number">29</span><br>    #<span class="hljs-number">18</span> <span class="hljs-number">0</span>x7fbd0599b49c in WebCor<span class="hljs-number">e::</span>Document<span class="hljs-number">::</span>removedLastRef() Source/WebCore/dom/Document.cpp:<span class="hljs-number">766</span><br>    #<span class="hljs-number">19</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05b2a2a7</span> in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>removedLastRef() Source/WebCore/dom/Node.cpp:<span class="hljs-number">2533</span><br>    #<span class="hljs-number">20</span> <span class="hljs-number">0</span>x7fbd05b2fa14 in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>deref() const Source/WebCore/dom/Node.h:<span class="hljs-number">716</span><br>    #<span class="hljs-number">21</span> <span class="hljs-number">0</span>x7fbd05b2fa14 in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>derefEventTarget() Source/WebCore/dom/Node.cpp:<span class="hljs-number">825</span><br>    #<span class="hljs-number">22</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>deref() Source/WebCore/dom/EventTarget.h:<span class="hljs-number">58</span><br>    #<span class="hljs-number">23</span> <span class="hljs-number">0</span>x7fbd038f70cd in WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>EventTarget, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>EventTarget&gt; &gt;::~Ref() DerivedSources/ForwardingHeaders/wtf/Ref.h:<span class="hljs-number">61</span><br>    #<span class="hljs-number">24</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSDOMWrapper&lt;WebCor<span class="hljs-number">e::</span>EventTarget&gt;::~JSDOMWrapper() Source/WebCore/bindings/js/JSDOMWrapper.h:<span class="hljs-number">71</span><br>    #<span class="hljs-number">25</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSEventTarget::~JSEventTarget() DerivedSources/WebCore/JSEventTarget.h:<span class="hljs-number">30</span><br>    #<span class="hljs-number">26</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSEventTarget<span class="hljs-number">::</span>destroy(JS<span class="hljs-number">C::</span>JSCell*) DerivedSources/WebCore/JSEventTarget.cpp:<span class="hljs-number">234</span><br>    #<span class="hljs-number">27</span> <span class="hljs-number">0</span>x7fbcfb288c7c in JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFun<span class="hljs-number">c::</span>operator()(JS<span class="hljs-number">C::</span>VM&amp;, JS<span class="hljs-number">C::</span>JSCell*) const Source/JavaScriptCore/runtime/JSDestructibleObjectHeapCellType.cpp:<span class="hljs-number">37</span><br>    #<span class="hljs-number">28</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda(void*)#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()(void*) const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">260</span><br>    #<span class="hljs-number">29</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda(unsigned long)#<span class="hljs-number">3</span>&#125;<span class="hljs-number">::</span>operator()(unsigned long) const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">319</span><br>    #<span class="hljs-number">30</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;) Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">341</span><br>    #<span class="hljs-number">31</span> <span class="hljs-number">0</span>x7fbcfb266d9b in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>finishSweepKnowingHeapCellType&lt;JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda()#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()() const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">423</span><br>    #<span class="hljs-number">32</span> <span class="hljs-number">0</span>x7fbcfb266d9b in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>finishSweepKnowingHeapCellType&lt;JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;) Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">435</span><br>    #<span class="hljs-number">33</span> <span class="hljs-number">0</span>x7fbcfb266d9b in JS<span class="hljs-number">C::</span>JSDestructibleObjectHeapCellTyp<span class="hljs-number">e::</span>finishSweep(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle&amp;, JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/runtime/JSDestructibleObjectHeapCellType.cpp:<span class="hljs-number">52</span><br>    #<span class="hljs-number">34</span> <span class="hljs-number">0</span>x7fbcfa4f4c96 in JS<span class="hljs-number">C::</span>Subsp<span class="hljs-number">ace::</span>finishSweep(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle&amp;, JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/heap/Subspace.cpp:<span class="hljs-number">64</span><br>    #<span class="hljs-number">35</span> <span class="hljs-number">0</span>x7fbcfa4c9381 in JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>sweep(JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/heap/MarkedBlock.cpp:<span class="hljs-number">419</span><br>    #<span class="hljs-number">36</span> <span class="hljs-number">0</span>x7fbcfa48459c in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>tryAllocateIn(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle*) Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">226</span><br>    #<span class="hljs-number">37</span> <span class="hljs-number">0</span>x7fbcfa484d0a in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>tryAllocateWithoutCollecting() Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">192</span><br>    #<span class="hljs-number">38</span> <span class="hljs-number">0</span>x7fbcfa48e44e in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocateSlowCase(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">133</span><br>    #<span class="hljs-number">39</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()() const DerivedSources/ForwardingHeaders/JavaScriptCore/LocalAllocatorInlines.h:<span class="hljs-number">40</span><br>    #<span class="hljs-number">40</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>HeapCell* JS<span class="hljs-number">C::</span>FreeList<span class="hljs-number">::</span>allocate&lt;JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125;&gt;(JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125; const&amp;) DerivedSources/ForwardingHeaders/JavaScriptCore/FreeListInlines.h:<span class="hljs-number">46</span><br>    #<span class="hljs-number">41</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/LocalAllocatorInlines.h:<span class="hljs-number">41</span><br>    #<span class="hljs-number">42</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>Allocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) const DerivedSources/ForwardingHeaders/JavaScriptCore/AllocatorInlines.h:<span class="hljs-number">35</span><br>    #<span class="hljs-number">43</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>CompleteSubsp<span class="hljs-number">ace::</span>allocateNonVirtual(JS<span class="hljs-number">C::</span>VM&amp;, unsigned long, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/CompleteSubspaceInlines.h:<span class="hljs-number">39</span><br>    #<span class="hljs-number">44</span> <span class="hljs-number">0</span>x7fbd03af7167 in void* JS<span class="hljs-number">C::</span>tryAllocateCellHelper&lt;WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement&gt;(JS<span class="hljs-number">C::</span>Heap&amp;, unsigned long, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/JSCellInlines.h:<span class="hljs-number">163</span><br>    #<span class="hljs-number">45</span> <span class="hljs-number">0</span>x7fbd03af7167 in void* JS<span class="hljs-number">C::</span>allocateCell&lt;WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement&gt;(JS<span class="hljs-number">C::</span>Heap&amp;, unsigned long) DerivedSources/ForwardingHeaders/JavaScriptCore/JSCellInlines.h:<span class="hljs-number">177</span><br>    #<span class="hljs-number">46</span> <span class="hljs-number">0</span>x7fbd03af7167 in WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement<span class="hljs-number">::</span>create(JS<span class="hljs-number">C::</span>Structure*, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt; &gt;&amp;&amp;) DerivedSources/WebCore/JSHTMLScriptElement.h:<span class="hljs-number">35</span><br>    #<span class="hljs-number">47</span> <span class="hljs-number">0</span>x7fbd03af7167 in st<span class="hljs-number">d::</span>enable_if&lt;st<span class="hljs-number">d::</span>is_same&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>value, WebCor<span class="hljs-number">e::</span>JSDOMWrapperConverterTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>WrapperClass*&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>createWrapper&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMWrapperCache.h:<span class="hljs-number">187</span><br>    #<span class="hljs-number">48</span> <span class="hljs-number">0</span>x7fbd03af7167 in st<span class="hljs-number">d::</span>enable_if&lt;!st<span class="hljs-number">d::</span>is_same&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLElement&gt;<span class="hljs-number">::</span>value, WebCor<span class="hljs-number">e::</span>JSDOMWrapperConverterTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>WrapperClass*&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>createWrapper&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLElement&gt;(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLElement&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMWrapperCache.h:<span class="hljs-number">194</span><br>    #<span class="hljs-number">49</span> <span class="hljs-number">0</span>x7fbd03af7167 in createHTMLScriptElementWrapper DerivedSources/WebCore/JSHTMLElementWrapperFactory.cpp:<span class="hljs-number">527</span><br>    #<span class="hljs-number">50</span> <span class="hljs-number">0</span>x7fbd03b10e86 in WebCor<span class="hljs-number">e::</span>createJSHTMLWrapper(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLElement&gt; &gt;&amp;&amp;) DerivedSources/WebCore/JSHTMLElementWrapperFactory.cpp:<span class="hljs-number">795</span><br>    #<span class="hljs-number">51</span> <span class="hljs-number">0</span>x7fbd0511cd70 in createNewElementWrapper Source/WebCore/bindings/js/JSElementCustom.cpp:<span class="hljs-number">55</span><br>    #<span class="hljs-number">52</span> <span class="hljs-number">0</span>x7fbd0511cd70 in WebCor<span class="hljs-number">e::</span>toJSNewlyCreated(JS<span class="hljs-number">C::</span>JSGlobalObject*, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSElementCustom.cpp:<span class="hljs-number">77</span><br>    #<span class="hljs-number">53</span> <span class="hljs-number">0</span>x7fbd037ec467 in JS<span class="hljs-number">C::</span>JSValue WebCor<span class="hljs-number">e::</span>JSConverter&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;<span class="hljs-number">::</span>convertNewlyCreated&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertInterface.h:<span class="hljs-number">87</span><br>    #<span class="hljs-number">54</span> <span class="hljs-number">0</span>x7fbd037ec467 in JS<span class="hljs-number">C::</span>JSValue WebCor<span class="hljs-number">e::</span>toJSNewlyCreated&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertBase.h:<span class="hljs-number">162</span><br>    #<span class="hljs-number">55</span> <span class="hljs-number">0</span>x7fbd037ec467 in st<span class="hljs-number">d::</span>enable_if&lt;WebCor<span class="hljs-number">e::</span>IsExceptionOr&lt;WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>value, JS<span class="hljs-number">C::</span>JSValue&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>toJSNewlyCreated&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt;, WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, JS<span class="hljs-number">C::</span>ThrowScope&amp;, WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertBase.h:<span class="hljs-number">202</span><br>    #<span class="hljs-number">56</span> <span class="hljs-number">0</span>x7fbd037ec467 in jsDocumentPrototypeFunctionCreateElementBody DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">5071</span><br>    #<span class="hljs-number">57</span> <span class="hljs-number">0</span>x7fbd037ec467 in call&lt;WebCor<span class="hljs-number">e::</span>jsDocumentPrototypeFunctionCreateElementBody&gt; Source/WebCore/bindings/js/JSDOMOperation.h:<span class="hljs-number">53</span><br>    #<span class="hljs-number">58</span> <span class="hljs-number">0</span>x7fbd037ec467 in WebCor<span class="hljs-number">e::</span>jsDocumentPrototypeFunctionCreateElement(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>CallFrame*) DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">5076</span><br>    #<span class="hljs-number">59</span> <span class="hljs-number">0</span>x7fbca<span class="hljs-number">9342177</span>  (&lt;unknown module&gt;)<br><br><span class="hljs-number">0</span>x60<span class="hljs-number">70000b4a48</span> is located <span class="hljs-number">8</span> bytes inside of <span class="hljs-number">80</span>-byte region [<span class="hljs-number">0</span>x60<span class="hljs-number">70000b4a40</span>,<span class="hljs-number">0</span>x60<span class="hljs-number">70000b4a90</span>)<br>freed by thread T0 here:<br>    #<span class="hljs-number">0</span> <span class="hljs-number">0</span>x7fbd0ae8f7a8 in __interceptor_free (/usr/lib/x86_64-linux-gnu/libasan.so.<span class="hljs-number">4</span>+<span class="hljs-number">0</span>xde7a8)<br>    #<span class="hljs-number">1</span> <span class="hljs-number">0</span>x7fbcfc05f8a8 in WT<span class="hljs-number">F::</span>fastFree(void*) Source/WTF/wtf/FastMalloc.cpp:<span class="hljs-number">226</span><br>    #<span class="hljs-number">2</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">01f9a1c9</span> in WT<span class="hljs-number">F::</span>FastMallo<span class="hljs-number">c::</span>free(void*) DerivedSources/ForwardingHeaders/wtf/FastMalloc.h:<span class="hljs-number">228</span><br>    #<span class="hljs-number">3</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">01f9a1c9</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>deallocateTable(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;*) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">1226</span><br>    #<span class="hljs-number">4</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0598f680</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;::~HashTable() DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">412</span><br>    #<span class="hljs-number">5</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0598f680</span> in WT<span class="hljs-number">F::</span>HashSet&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;::~HashSet() DerivedSources/ForwardingHeaders/wtf/HashSet.h:<span class="hljs-number">33</span><br>    #<span class="hljs-number">6</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0598f680</span> in WT<span class="hljs-number">F::</span>WeakHashSet&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;::~WeakHashSet() DerivedSources/ForwardingHeaders/wtf/WeakHashSet.h:<span class="hljs-number">44</span><br>    #<span class="hljs-number">7</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0598f680</span> in WebCor<span class="hljs-number">e::</span>Document::~Document() Source/WebCore/dom/Document.cpp:<span class="hljs-number">628</span><br>    #<span class="hljs-number">8</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">060f6574</span> in WebCor<span class="hljs-number">e::</span>HTMLDocument::~HTMLDocument() Source/WebCore/html/HTMLDocument.h:<span class="hljs-number">29</span><br>    #<span class="hljs-number">9</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">060f6660</span> in WebCor<span class="hljs-number">e::</span>HTMLDocument::~HTMLDocument() Source/WebCore/html/HTMLDocument.h:<span class="hljs-number">29</span><br>    #<span class="hljs-number">10</span> <span class="hljs-number">0</span>x7fbd0599b49c in WebCor<span class="hljs-number">e::</span>Document<span class="hljs-number">::</span>removedLastRef() Source/WebCore/dom/Document.cpp:<span class="hljs-number">766</span><br>    #<span class="hljs-number">11</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05b2a2a7</span> in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>removedLastRef() Source/WebCore/dom/Node.cpp:<span class="hljs-number">2533</span><br>    #<span class="hljs-number">12</span> <span class="hljs-number">0</span>x7fbd05b2fa14 in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>deref() const Source/WebCore/dom/Node.h:<span class="hljs-number">716</span><br>    #<span class="hljs-number">13</span> <span class="hljs-number">0</span>x7fbd05b2fa14 in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>derefEventTarget() Source/WebCore/dom/Node.cpp:<span class="hljs-number">825</span><br>    #<span class="hljs-number">14</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>deref() Source/WebCore/dom/EventTarget.h:<span class="hljs-number">58</span><br>    #<span class="hljs-number">15</span> <span class="hljs-number">0</span>x7fbd038f70cd in WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>EventTarget, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>EventTarget&gt; &gt;::~Ref() DerivedSources/ForwardingHeaders/wtf/Ref.h:<span class="hljs-number">61</span><br>    #<span class="hljs-number">16</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSDOMWrapper&lt;WebCor<span class="hljs-number">e::</span>EventTarget&gt;::~JSDOMWrapper() Source/WebCore/bindings/js/JSDOMWrapper.h:<span class="hljs-number">71</span><br>    #<span class="hljs-number">17</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSEventTarget::~JSEventTarget() DerivedSources/WebCore/JSEventTarget.h:<span class="hljs-number">30</span><br>    #<span class="hljs-number">18</span> <span class="hljs-number">0</span>x7fbd038f70cd in WebCor<span class="hljs-number">e::</span>JSEventTarget<span class="hljs-number">::</span>destroy(JS<span class="hljs-number">C::</span>JSCell*) DerivedSources/WebCore/JSEventTarget.cpp:<span class="hljs-number">234</span><br>    #<span class="hljs-number">19</span> <span class="hljs-number">0</span>x7fbcfb288c7c in JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFun<span class="hljs-number">c::</span>operator()(JS<span class="hljs-number">C::</span>VM&amp;, JS<span class="hljs-number">C::</span>JSCell*) const Source/JavaScriptCore/runtime/JSDestructibleObjectHeapCellType.cpp:<span class="hljs-number">37</span><br>    #<span class="hljs-number">20</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda(void*)#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()(void*) const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">260</span><br>    #<span class="hljs-number">21</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda(unsigned long)#<span class="hljs-number">3</span>&#125;<span class="hljs-number">::</span>operator()(unsigned long) const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">319</span><br>    #<span class="hljs-number">22</span> <span class="hljs-number">0</span>x7fbcfb288c7c in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>specializedSweep&lt;true, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode)<span class="hljs-number">0</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode)<span class="hljs-number">1</span>, (JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode)<span class="hljs-number">1</span>, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>EmptyMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>SweepDestructionMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>ScribbleMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>NewlyAllocatedMode, JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>MarksMode, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;) Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">341</span><br>    #<span class="hljs-number">23</span> <span class="hljs-number">0</span>x7fbcfb266d9b in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>finishSweepKnowingHeapCellType&lt;JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;)::&#123;lambda()#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()() const Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">423</span><br>    #<span class="hljs-number">24</span> <span class="hljs-number">0</span>x7fbcfb266d9b in void JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>finishSweepKnowingHeapCellType&lt;JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc&gt;(JS<span class="hljs-number">C::</span>FreeList*, JS<span class="hljs-number">C::</span>JSDestructibleObjectDestroyFunc const&amp;) Source/JavaScriptCore/heap/MarkedBlockInlines.h:<span class="hljs-number">435</span><br>    #<span class="hljs-number">25</span> <span class="hljs-number">0</span>x7fbcfb266d9b in JS<span class="hljs-number">C::</span>JSDestructibleObjectHeapCellTyp<span class="hljs-number">e::</span>finishSweep(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle&amp;, JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/runtime/JSDestructibleObjectHeapCellType.cpp:<span class="hljs-number">52</span><br>    #<span class="hljs-number">26</span> <span class="hljs-number">0</span>x7fbcfa4f4c96 in JS<span class="hljs-number">C::</span>Subsp<span class="hljs-number">ace::</span>finishSweep(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle&amp;, JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/heap/Subspace.cpp:<span class="hljs-number">64</span><br>    #<span class="hljs-number">27</span> <span class="hljs-number">0</span>x7fbcfa4c9381 in JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handl<span class="hljs-number">e::</span>sweep(JS<span class="hljs-number">C::</span>FreeList*) Source/JavaScriptCore/heap/MarkedBlock.cpp:<span class="hljs-number">419</span><br>    #<span class="hljs-number">28</span> <span class="hljs-number">0</span>x7fbcfa48459c in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>tryAllocateIn(JS<span class="hljs-number">C::</span>MarkedBlock<span class="hljs-number">::</span>Handle*) Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">226</span><br>    #<span class="hljs-number">29</span> <span class="hljs-number">0</span>x7fbcfa484d0a in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>tryAllocateWithoutCollecting() Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">192</span><br>    #<span class="hljs-number">30</span> <span class="hljs-number">0</span>x7fbcfa48e44e in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocateSlowCase(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) Source/JavaScriptCore/heap/LocalAllocator.cpp:<span class="hljs-number">133</span><br>    #<span class="hljs-number">31</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125;<span class="hljs-number">::</span>operator()() const DerivedSources/ForwardingHeaders/JavaScriptCore/LocalAllocatorInlines.h:<span class="hljs-number">40</span><br>    #<span class="hljs-number">32</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>HeapCell* JS<span class="hljs-number">C::</span>FreeList<span class="hljs-number">::</span>allocate&lt;JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125;&gt;(JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode)::&#123;lambda()#<span class="hljs-number">1</span>&#125; const&amp;) DerivedSources/ForwardingHeaders/JavaScriptCore/FreeListInlines.h:<span class="hljs-number">46</span><br>    #<span class="hljs-number">33</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>LocalAllocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/LocalAllocatorInlines.h:<span class="hljs-number">41</span><br>    #<span class="hljs-number">34</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>Allocator<span class="hljs-number">::</span>allocate(JS<span class="hljs-number">C::</span>Heap&amp;, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) const DerivedSources/ForwardingHeaders/JavaScriptCore/AllocatorInlines.h:<span class="hljs-number">35</span><br>    #<span class="hljs-number">35</span> <span class="hljs-number">0</span>x7fbd03a99b91 in JS<span class="hljs-number">C::</span>CompleteSubsp<span class="hljs-number">ace::</span>allocateNonVirtual(JS<span class="hljs-number">C::</span>VM&amp;, unsigned long, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/CompleteSubspaceInlines.h:<span class="hljs-number">39</span><br>    #<span class="hljs-number">36</span> <span class="hljs-number">0</span>x7fbd03af7167 in void* JS<span class="hljs-number">C::</span>tryAllocateCellHelper&lt;WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement&gt;(JS<span class="hljs-number">C::</span>Heap&amp;, unsigned long, JS<span class="hljs-number">C::</span>GCDeferralContext*, JS<span class="hljs-number">C::</span>AllocationFailureMode) DerivedSources/ForwardingHeaders/JavaScriptCore/JSCellInlines.h:<span class="hljs-number">163</span><br>    #<span class="hljs-number">37</span> <span class="hljs-number">0</span>x7fbd03af7167 in void* JS<span class="hljs-number">C::</span>allocateCell&lt;WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement&gt;(JS<span class="hljs-number">C::</span>Heap&amp;, unsigned long) DerivedSources/ForwardingHeaders/JavaScriptCore/JSCellInlines.h:<span class="hljs-number">177</span><br>    #<span class="hljs-number">38</span> <span class="hljs-number">0</span>x7fbd03af7167 in WebCor<span class="hljs-number">e::</span>JSHTMLScriptElement<span class="hljs-number">::</span>create(JS<span class="hljs-number">C::</span>Structure*, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt; &gt;&amp;&amp;) DerivedSources/WebCore/JSHTMLScriptElement.h:<span class="hljs-number">35</span><br>    #<span class="hljs-number">39</span> <span class="hljs-number">0</span>x7fbd03af7167 in st<span class="hljs-number">d::</span>enable_if&lt;st<span class="hljs-number">d::</span>is_same&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>value, WebCor<span class="hljs-number">e::</span>JSDOMWrapperConverterTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>WrapperClass*&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>createWrapper&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMWrapperCache.h:<span class="hljs-number">187</span><br>    #<span class="hljs-number">40</span> <span class="hljs-number">0</span>x7fbd03af7167 in st<span class="hljs-number">d::</span>enable_if&lt;!st<span class="hljs-number">d::</span>is_same&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLElement&gt;<span class="hljs-number">::</span>value, WebCor<span class="hljs-number">e::</span>JSDOMWrapperConverterTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement&gt;<span class="hljs-number">::</span>WrapperClass*&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>createWrapper&lt;WebCor<span class="hljs-number">e::</span>HTMLScriptElement, WebCor<span class="hljs-number">e::</span>HTMLElement&gt;(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLElement&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMWrapperCache.h:<span class="hljs-number">194</span><br>    #<span class="hljs-number">41</span> <span class="hljs-number">0</span>x7fbd03af7167 in createHTMLScriptElementWrapper DerivedSources/WebCore/JSHTMLElementWrapperFactory.cpp:<span class="hljs-number">527</span><br>    #<span class="hljs-number">42</span> <span class="hljs-number">0</span>x7fbd03b10e86 in WebCor<span class="hljs-number">e::</span>createJSHTMLWrapper(WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>HTMLElement, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>HTMLElement&gt; &gt;&amp;&amp;) DerivedSources/WebCore/JSHTMLElementWrapperFactory.cpp:<span class="hljs-number">795</span><br>    #<span class="hljs-number">43</span> <span class="hljs-number">0</span>x7fbd0511cd70 in createNewElementWrapper Source/WebCore/bindings/js/JSElementCustom.cpp:<span class="hljs-number">55</span><br>    #<span class="hljs-number">44</span> <span class="hljs-number">0</span>x7fbd0511cd70 in WebCor<span class="hljs-number">e::</span>toJSNewlyCreated(JS<span class="hljs-number">C::</span>JSGlobalObject*, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject*, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSElementCustom.cpp:<span class="hljs-number">77</span><br>    #<span class="hljs-number">45</span> <span class="hljs-number">0</span>x7fbd037ec467 in JS<span class="hljs-number">C::</span>JSValue WebCor<span class="hljs-number">e::</span>JSConverter&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;<span class="hljs-number">::</span>convertNewlyCreated&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertInterface.h:<span class="hljs-number">87</span><br>    #<span class="hljs-number">46</span> <span class="hljs-number">0</span>x7fbd037ec467 in JS<span class="hljs-number">C::</span>JSValue WebCor<span class="hljs-number">e::</span>toJSNewlyCreated&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertBase.h:<span class="hljs-number">162</span><br>    #<span class="hljs-number">47</span> <span class="hljs-number">0</span>x7fbd037ec467 in st<span class="hljs-number">d::</span>enable_if&lt;WebCor<span class="hljs-number">e::</span>IsExceptionOr&lt;WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>value, JS<span class="hljs-number">C::</span>JSValue&gt;<span class="hljs-number">::</span>type WebCor<span class="hljs-number">e::</span>toJSNewlyCreated&lt;WebCor<span class="hljs-number">e::</span>IDLInterface&lt;WebCor<span class="hljs-number">e::</span>Element&gt;, WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt; &gt;(JS<span class="hljs-number">C::</span>JSGlobalObject&amp;, WebCor<span class="hljs-number">e::</span>JSDOMGlobalObject&amp;, JS<span class="hljs-number">C::</span>ThrowScope&amp;, WebCor<span class="hljs-number">e::</span>ExceptionOr&lt;WT<span class="hljs-number">F::</span>Ref&lt;WebCor<span class="hljs-number">e::</span>Element, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>Element&gt; &gt; &gt;&amp;&amp;) Source/WebCore/bindings/js/JSDOMConvertBase.h:<span class="hljs-number">202</span><br>    #<span class="hljs-number">48</span> <span class="hljs-number">0</span>x7fbd037ec467 in jsDocumentPrototypeFunctionCreateElementBody DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">5071</span><br>    #<span class="hljs-number">49</span> <span class="hljs-number">0</span>x7fbd037ec467 in call&lt;WebCor<span class="hljs-number">e::</span>jsDocumentPrototypeFunctionCreateElementBody&gt; Source/WebCore/bindings/js/JSDOMOperation.h:<span class="hljs-number">53</span><br>    #<span class="hljs-number">50</span> <span class="hljs-number">0</span>x7fbd037ec467 in WebCor<span class="hljs-number">e::</span>jsDocumentPrototypeFunctionCreateElement(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>CallFrame*) DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">5076</span><br>    #<span class="hljs-number">51</span> <span class="hljs-number">0</span>x7fbca<span class="hljs-number">9342177</span>  (&lt;unknown module&gt;)<br>    #<span class="hljs-number">52</span> <span class="hljs-number">0</span>x7fbcfaab3104  (/home/ubuntu/webkitgtk-<span class="hljs-number">2</span>.<span class="hljs-number">28</span>.<span class="hljs-number">0</span>/lib/libjavascriptcoregtk-<span class="hljs-number">4</span>.<span class="hljs-number">0</span>.so.<span class="hljs-number">18</span>+<span class="hljs-number">0x3112104</span>)<br>    #<span class="hljs-number">53</span> <span class="hljs-number">0</span>x7fbcfaa9c161  (/home/ubuntu/webkitgtk-<span class="hljs-number">2</span>.<span class="hljs-number">28</span>.<span class="hljs-number">0</span>/lib/libjavascriptcoregtk-<span class="hljs-number">4</span>.<span class="hljs-number">0</span>.so.<span class="hljs-number">18</span>+<span class="hljs-number">0</span>x30fb161)<br>    #<span class="hljs-number">54</span> <span class="hljs-number">0</span>x7fbcfa7666ec in JS<span class="hljs-number">C::</span>JITCo<span class="hljs-number">de::</span>execute(JS<span class="hljs-number">C::</span>VM*, JS<span class="hljs-number">C::</span>ProtoCallFrame*) Source/JavaScriptCore/jit/JITCodeInlines.h:<span class="hljs-number">38</span><br>    #<span class="hljs-number">55</span> <span class="hljs-number">0</span>x7fbcfa73f66f in JS<span class="hljs-number">C::</span>Interpreter<span class="hljs-number">::</span>executeCall(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSObject*, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;) Source/JavaScriptCore/interpreter/Interpreter.cpp:<span class="hljs-number">910</span><br>    #<span class="hljs-number">56</span> <span class="hljs-number">0</span>x7fbcfaf7441c in JS<span class="hljs-number">C::</span>call(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">59</span><br>    #<span class="hljs-number">57</span> <span class="hljs-number">0</span>x7fbcfaf7459f in JS<span class="hljs-number">C::</span>call(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;, WT<span class="hljs-number">F::</span>NakedPtr&lt;JS<span class="hljs-number">C::</span>Exception&gt;&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">66</span><br>    #<span class="hljs-number">58</span> <span class="hljs-number">0</span>x7fbcfaf74a8f in JS<span class="hljs-number">C::</span>profiledCall(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>ProfilingReason, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;, WT<span class="hljs-number">F::</span>NakedPtr&lt;JS<span class="hljs-number">C::</span>Exception&gt;&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">87</span><br><br>previously allocated by thread T0 here:<br>    #<span class="hljs-number">0</span> <span class="hljs-number">0</span>x7fbd0ae8fb40 in __interceptor_malloc (/usr/lib/x86_64-linux-gnu/libasan.so.<span class="hljs-number">4</span>+<span class="hljs-number">0</span>xdeb40)<br>    #<span class="hljs-number">1</span> <span class="hljs-number">0</span>x7fbcfc05f7c8 in WT<span class="hljs-number">F::</span>fastMalloc(unsigned long) Source/WTF/wtf/FastMalloc.cpp:<span class="hljs-number">201</span><br>    #<span class="hljs-number">2</span> <span class="hljs-number">0</span>x7fbcfc05f7f0 in WT<span class="hljs-number">F::</span>fastZeroedMalloc(unsigned long) Source/WTF/wtf/FastMalloc.cpp:<span class="hljs-number">95</span><br>    #<span class="hljs-number">3</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0200f953</span> in WT<span class="hljs-number">F::</span>FastMallo<span class="hljs-number">c::</span>zeroedMalloc(unsigned long) DerivedSources/ForwardingHeaders/wtf/FastMalloc.h:<span class="hljs-number">206</span><br>    #<span class="hljs-number">4</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0200f953</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>allocateTable(unsigned int) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">1210</span><br>    #<span class="hljs-number">5</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0200f953</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>rehash(unsigned int, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;*) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">1322</span><br>    #<span class="hljs-number">6</span> <span class="hljs-number">0</span>x7fbd0201070c in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>expand(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;*) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">1244</span><br>    #<span class="hljs-number">7</span> <span class="hljs-number">0</span>x7fbd02cd3b60 in WT<span class="hljs-number">F::</span>HashTableAddResult&lt;WT<span class="hljs-number">F::</span>HashTableIterator&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt; &gt; WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::add</span>&lt;WT<span class="hljs-number">F::</span>IdentityHashTranslator&lt;WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; const&amp;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;&amp;&amp;) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">929</span><br>    #<span class="hljs-number">8</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">059525b1</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::add</span>(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;&amp;&amp;) DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">467</span><br>    #<span class="hljs-number">9</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">059525b1</span> in WT<span class="hljs-number">F::</span>HashSet&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::add</span>(WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;&amp;&amp;) DerivedSources/ForwardingHeaders/wtf/HashSet.h:<span class="hljs-number">241</span><br>    #<span class="hljs-number">10</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">059525b1</span> in WT<span class="hljs-number">F::</span>HashTableAddResult&lt;WT<span class="hljs-number">F::</span>HashTableIterator&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt; &gt; WT<span class="hljs-number">F::</span>WeakHashSet&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;<span class="hljs-number">::add</span>&lt;WebCor<span class="hljs-number">e::</span>DocumentTimeline&gt;(WebCor<span class="hljs-number">e::</span>DocumentTimeline const&amp;) DerivedSources/ForwardingHeaders/wtf/WeakHashSet.h:<span class="hljs-number">103</span><br>    #<span class="hljs-number">11</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">059525b1</span> in WebCor<span class="hljs-number">e::</span>Document<span class="hljs-number">::</span>addTimeline(WebCor<span class="hljs-number">e::</span>DocumentTimeline&amp;) Source/WebCore/dom/Document.cpp:<span class="hljs-number">8059</span><br>    #<span class="hljs-number">12</span> <span class="hljs-number">0</span>x7fbd04fb4588 in WebCor<span class="hljs-number">e::</span>DocumentTimelin<span class="hljs-number">e::</span>DocumentTimeline(WebCor<span class="hljs-number">e::</span>Document&amp;, WT<span class="hljs-number">F::</span>Seconds) Source/WebCore/animation/DocumentTimeline.cpp:<span class="hljs-number">70</span><br>    #<span class="hljs-number">13</span> <span class="hljs-number">0</span>x7fbd04fb4be7 in WebCor<span class="hljs-number">e::</span>DocumentTimelin<span class="hljs-number">e::</span>create(WebCor<span class="hljs-number">e::</span>Document&amp;) Source/WebCore/animation/DocumentTimeline.cpp:<span class="hljs-number">56</span><br>    #<span class="hljs-number">14</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">0590d0a4</span> in WebCor<span class="hljs-number">e::</span>Document<span class="hljs-number">::</span>timeline() Source/WebCore/dom/Document.cpp:<span class="hljs-number">8070</span><br>    #<span class="hljs-number">15</span> <span class="hljs-number">0</span>x7fbd038177ae in jsDocumentTimelineGetter DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">2296</span><br>    #<span class="hljs-number">16</span> <span class="hljs-number">0</span>x7fbd038177ae in get&lt;WebCor<span class="hljs-number">e::</span>jsDocumentTimelineGetter, (WebCor<span class="hljs-number">e::</span>CastedThisErrorBehavior)<span class="hljs-number">3</span>&gt; Source/WebCore/bindings/js/JSDOMAttribute.h:<span class="hljs-number">69</span><br>    #<span class="hljs-number">17</span> <span class="hljs-number">0</span>x7fbd038177ae in WebCor<span class="hljs-number">e::</span>jsDocumentTimeline(JS<span class="hljs-number">C::</span>JSGlobalObject*, long, JS<span class="hljs-number">C::</span>PropertyName) DerivedSources/WebCore/JSDocument.cpp:<span class="hljs-number">2302</span><br>    #<span class="hljs-number">18</span> <span class="hljs-number">0</span>x7fbcfb5c41b1 in JS<span class="hljs-number">C::</span>PropertySlot<span class="hljs-number">::</span>customGetter(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>PropertyName) const Source/JavaScriptCore/runtime/PropertySlot.cpp:<span class="hljs-number">50</span><br>    #<span class="hljs-number">19</span> <span class="hljs-number">0</span>x7fbcf994b40d in JS<span class="hljs-number">C::</span>PropertySlot<span class="hljs-number">::</span>getValue(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>PropertyName) const Source/JavaScriptCore/runtime/PropertySlot.h:<span class="hljs-number">422</span><br>    #<span class="hljs-number">20</span> <span class="hljs-number">0</span>x7fbcfab2381c in JS<span class="hljs-number">C::</span>JSValu<span class="hljs-number">e::</span>get(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>PropertyName, JS<span class="hljs-number">C::</span>PropertySlot&amp;) const Source/JavaScriptCore/runtime/JSCJSValueInlines.h:<span class="hljs-number">886</span><br>    #<span class="hljs-number">21</span> <span class="hljs-number">0</span>x7fbcfab2381c in llint_slow_path_get_by_id Source/JavaScriptCore/llint/LLIntSlowPaths.cpp:<span class="hljs-number">763</span><br>    #<span class="hljs-number">22</span> <span class="hljs-number">0</span>x7fbcfaaa4eb5  (/home/ubuntu/webkitgtk-<span class="hljs-number">2</span>.<span class="hljs-number">28</span>.<span class="hljs-number">0</span>/lib/libjavascriptcoregtk-<span class="hljs-number">4</span>.<span class="hljs-number">0</span>.so.<span class="hljs-number">18</span>+<span class="hljs-number">0</span>x3103eb5)<br>    #<span class="hljs-number">23</span> <span class="hljs-number">0</span>x7fbcfaab2f87  (/home/ubuntu/webkitgtk-<span class="hljs-number">2</span>.<span class="hljs-number">28</span>.<span class="hljs-number">0</span>/lib/libjavascriptcoregtk-<span class="hljs-number">4</span>.<span class="hljs-number">0</span>.so.<span class="hljs-number">18</span>+<span class="hljs-number">0x3111f87</span>)<br>    #<span class="hljs-number">24</span> <span class="hljs-number">0</span>x7fbcfaa9c161  (/home/ubuntu/webkitgtk-<span class="hljs-number">2</span>.<span class="hljs-number">28</span>.<span class="hljs-number">0</span>/lib/libjavascriptcoregtk-<span class="hljs-number">4</span>.<span class="hljs-number">0</span>.so.<span class="hljs-number">18</span>+<span class="hljs-number">0</span>x30fb161)<br>    #<span class="hljs-number">25</span> <span class="hljs-number">0</span>x7fbcfa7666ec in JS<span class="hljs-number">C::</span>JITCo<span class="hljs-number">de::</span>execute(JS<span class="hljs-number">C::</span>VM*, JS<span class="hljs-number">C::</span>ProtoCallFrame*) Source/JavaScriptCore/jit/JITCodeInlines.h:<span class="hljs-number">38</span><br>    #<span class="hljs-number">26</span> <span class="hljs-number">0</span>x7fbcfa73f66f in JS<span class="hljs-number">C::</span>Interpreter<span class="hljs-number">::</span>executeCall(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSObject*, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;) Source/JavaScriptCore/interpreter/Interpreter.cpp:<span class="hljs-number">910</span><br>    #<span class="hljs-number">27</span> <span class="hljs-number">0</span>x7fbcfaf7441c in JS<span class="hljs-number">C::</span>call(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">59</span><br>    #<span class="hljs-number">28</span> <span class="hljs-number">0</span>x7fbcfaf7459f in JS<span class="hljs-number">C::</span>call(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;, WT<span class="hljs-number">F::</span>NakedPtr&lt;JS<span class="hljs-number">C::</span>Exception&gt;&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">66</span><br>    #<span class="hljs-number">29</span> <span class="hljs-number">0</span>x7fbcfaf74a8f in JS<span class="hljs-number">C::</span>profiledCall(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>ProfilingReason, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;, WT<span class="hljs-number">F::</span>NakedPtr&lt;JS<span class="hljs-number">C::</span>Exception&gt;&amp;) Source/JavaScriptCore/runtime/CallData.cpp:<span class="hljs-number">87</span><br>    #<span class="hljs-number">30</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05133b63</span> in WebCor<span class="hljs-number">e::</span>JSExecStat<span class="hljs-number">e::</span>profiledCall(JS<span class="hljs-number">C::</span>JSGlobalObject*, JS<span class="hljs-number">C::</span>ProfilingReason, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>CallType, JS<span class="hljs-number">C::</span>CallData const&amp;, JS<span class="hljs-number">C::</span>JSValue, JS<span class="hljs-number">C::</span>ArgList const&amp;, WT<span class="hljs-number">F::</span>NakedPtr&lt;JS<span class="hljs-number">C::</span>Exception&gt;&amp;) Source/WebCore/bindings/js/JSExecState.h:<span class="hljs-number">73</span><br>    #<span class="hljs-number">31</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05133b63</span> in WebCor<span class="hljs-number">e::</span>JSEventListener<span class="hljs-number">::</span>handleEvent(WebCor<span class="hljs-number">e::</span>ScriptExecutionContext&amp;, WebCor<span class="hljs-number">e::</span>Event&amp;) Source/WebCore/bindings/js/JSEventListener.cpp:<span class="hljs-number">180</span><br>    #<span class="hljs-number">32</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05a70095</span> in WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>innerInvokeEventListeners(WebCor<span class="hljs-number">e::</span>Event&amp;, WT<span class="hljs-number">F::</span>Vector&lt;WT<span class="hljs-number">F::</span>RefPtr&lt;WebCor<span class="hljs-number">e::</span>RegisteredEventListener, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WebCor<span class="hljs-number">e::</span>RegisteredEventListener&gt; &gt;, <span class="hljs-number">1</span>ul, WT<span class="hljs-number">F::</span>CrashOnOverflow, <span class="hljs-number">16</span>ul, WT<span class="hljs-number">F::</span>FastMalloc&gt;, WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>EventInvokePhase) Source/WebCore/dom/EventTarget.cpp:<span class="hljs-number">308</span><br>    #<span class="hljs-number">33</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05a7a942</span> in WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>fireEventListeners(WebCor<span class="hljs-number">e::</span>Event&amp;, WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>EventInvokePhase) Source/WebCore/dom/EventTarget.cpp:<span class="hljs-number">246</span><br>    #<span class="hljs-number">34</span> <span class="hljs-number">0</span>x7fbd05b187fb in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>handleLocalEvents(WebCor<span class="hljs-number">e::</span>Event&amp;, WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>EventInvokePhase) Source/WebCore/dom/Node.cpp:<span class="hljs-number">2363</span><br>    #<span class="hljs-number">35</span> <span class="hljs-number">0</span>x7fbd05a56b86 in WebCor<span class="hljs-number">e::</span>EventContext<span class="hljs-number">::</span>handleLocalEvents(WebCor<span class="hljs-number">e::</span>Event&amp;, WebCor<span class="hljs-number">e::</span>EventTarget<span class="hljs-number">::</span>EventInvokePhase) const Source/WebCore/dom/EventContext.cpp:<span class="hljs-number">55</span><br>    #<span class="hljs-number">36</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05a4e232</span> in dispatchEventInDOM Source/WebCore/dom/EventDispatcher.cpp:<span class="hljs-number">100</span><br>    #<span class="hljs-number">37</span> <span class="hljs-number">0</span>x7fbd05a5c35f in WebCor<span class="hljs-number">e::</span>EventDispatcher<span class="hljs-number">::</span>dispatchEvent(WebCor<span class="hljs-number">e::</span>Node&amp;, WebCor<span class="hljs-number">e::</span>Event&amp;) Source/WebCore/dom/EventDispatcher.cpp:<span class="hljs-number">154</span><br>    #<span class="hljs-number">38</span> <span class="hljs-number">0</span>x7fbd<span class="hljs-number">05b0c7e8</span> in WebCor<span class="hljs-number">e::</span>No<span class="hljs-number">de::</span>dispatchEvent(WebCor<span class="hljs-number">e::</span>Event&amp;) Source/WebCore/dom/Node.cpp:<span class="hljs-number">2373</span><br><br>SUMMARY: AddressSanitizer: heap-use-after-free DerivedSources/ForwardingHeaders/wtf/HashTable.h:<span class="hljs-number">585</span> in WT<span class="hljs-number">F::</span>HashTable&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt;, WT<span class="hljs-number">F::</span>IdentityExtractor, WT<span class="hljs-number">F::</span>PtrHash&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt;, WT<span class="hljs-number">F::</span>HashTraits&lt;WT<span class="hljs-number">F::</span>Ref&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl, WT<span class="hljs-number">F::</span>DumbPtrTraits&lt;WT<span class="hljs-number">F::</span>WeakPtrImpl&gt; &gt; &gt; &gt;<span class="hljs-number">::</span>tableSizeMask() const<br>Shadow bytes around the buggy address:<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e8f0</span>: fa fa fa fa fd fd fd fd fd fd fd fd fd fd fa fa<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e900</span>: fa fa fd fd fd fd fd fd fd fd fd fd fa fa fa fa<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e910</span>: fd fd fd fd fd fd fd fd fd fd fa fa fa fa fd fd<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e920</span>: fd fd fd fd fd fd fd fd fa fa fa fa fd fd fd fd<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e930</span>: fd fd fd fd fd fa fa fa fa fa fd fd fd fd fd fd<br>=&gt;<span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e940</span>: fd fd fd fd fa fa fa fa fd[fd]fd fd fd fd fd fd<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e950</span>: fd fd fa fa fa fa fd fd fd fd fd fd fd fd fd fd<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e960</span>: fa fa fa fa fd fd fd fd fd fd fd fd fd fa fa fa<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e970</span>: fa fa fd fd fd fd fd fd fd fd fd fd fa fa fa fa<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e980</span>: fd fd fd fd fd fd fd fd fd fd fa fa fa fa fa fa<br>  <span class="hljs-number">0</span>x0c0e<span class="hljs-number">8000e990</span>: fa fa fa fa fa fa fa fa fa fa fa fa fd fd fd fd<br>Shadow byte legend (one shadow byte represents <span class="hljs-number">8</span> application bytes):<br>  Addressable:           <span class="hljs-number">00</span><br>  Partially addressable: <span class="hljs-number">01 02 03 04</span> <span class="hljs-number">05</span> <span class="hljs-number">06</span> <span class="hljs-number">07</span> <br>  Heap left redzone:       fa<br>  Freed heap region:       fd<br>  Stack left redzone:      f1<br>  Stack mid redzone:       f2<br>  Stack right redzone:     f3<br>  Stack after return:      f5<br>  Stack use after scope:   f8<br>  Global redzone:          f9<br>  Global init order:       f6<br>  Poisoned by user:        f7<br>  Container overflow:      fc<br>  Array cookie:            ac<br>  Intra object redzone:    bb<br>  ASan internal:           fe<br>  Left alloca redzone:     ca<br>  Right alloca redzone:    cb<br></code></pre></td></tr></table></figure>
+
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Fuzz/">#Fuzz</a>
+      
+        <a href="/tags/JS-Engine/">#JS Engine</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Freedom复现笔记</div>
+      <div>https://azyka.github.io/2022/09/23/Freedom复现笔记/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Azyka</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年9月23日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/09/30/Javascript%E5%BC%95%E6%93%8E%E6%A8%A1%E7%B3%8A%E6%B5%8B%E8%AF%95%E8%B0%83%E7%A0%94/" title="Javascript引擎模糊测试调研">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Javascript引擎模糊测试调研</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/09/08/Fuzzing101%E7%AC%94%E8%AE%B0-6-10/" title="Fuzzing101笔记 6~10">
+                        <span class="hidden-mobile">Fuzzing101笔记 6~10</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  <script>
+  Fluid.utils.createScript('https://lib.baomitu.com/mermaid/8.14.0/mermaid.min.js', function() {
+    mermaid.initialize({"theme":"default"});
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('mermaid' in window) {
+        mermaid.init();
+      }
+    });
+  });
+</script>
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
